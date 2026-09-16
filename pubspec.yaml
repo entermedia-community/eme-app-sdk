@@ -1,0 +1,44 @@
+name: eme_app_sdk
+description: "EME App SDK"
+publish_to: "none"
+version: 0.0.1
+homepage:
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  intl: ^0.20.2
+  transparent_image: ^2.0.1
+  url_launcher: ^6.3.2
+  timeago: ^3.7.1
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.6
+  web_socket_channel: ^3.0.1
+  logger: ^2.7.0
+  get: ^4.7.3
+  app_links: ^6.3.2
+  flutter_riverpod: ^2.6.1
+  image_picker: ^1.2.3
+  dio: ^5.11.0
+  cookie_jar: ^4.0.9
+  dio_cookie_manager: ^3.5.0
+  firebase_crashlytics: ^5.2.7
+  firebase_analytics: ^12.4.6
+  firebase_core: ^4.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true
