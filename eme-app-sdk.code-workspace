@@ -5,7 +5,7 @@
 			"path": ".",
 		},
 		{
-			"name": "eme_world",
+			"name": "eme_app_profile",
 			"path": "../eme-app-profile",
 		},
 	],
