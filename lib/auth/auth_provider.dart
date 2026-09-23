@@ -17,7 +17,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> checkAuthSession() async {
     state = state.copyWith(status: AuthStatus.authenticating);
     try {
-      final user = await authService.getCurrentUser();
+      final user = await authService.checkAuthSession();
       final token = await authService.getAuthToken();
       if (user != null && token != null && token.isNotEmpty) {
         state = state.copyWith(
@@ -31,6 +31,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.unauthenticated,
           user: null,
           token: null,
+          errorMessage: null,
         );
       }
     } catch (e) {
@@ -41,35 +42,121 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> login({
-    required String username,
-    required String password,
+  Future<SendUserCodeResult> sendUserCode({
+    required String email,
+    String? firstName,
+    String? lastName,
   }) async {
-    state = state.copyWith(status: AuthStatus.authenticating, errorMessage: null);
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      email: email.trim().toLowerCase(),
+      errorMessage: null,
+    );
+
     try {
-      final user = await authService.loginWithCredentials(
-        username: username,
-        password: password,
+      final result = await authService.sendUserCode(
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
       );
-      final token = await authService.getAuthToken();
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-        token: token,
-      );
-      return true;
+
+      if (result.isSuccess) {
+        state = state.copyWith(
+          status: AuthStatus.codeSent,
+          email: result.email ?? email,
+          errorMessage: null,
+        );
+      } else if (result.isNoUser) {
+        state = state.copyWith(
+          status: AuthStatus.needRegistration,
+          email: result.email ?? email,
+          allowGuestRegistration: result.allowGuestRegistration,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: result.errorMessage ?? 'Failed to send verification code',
+        );
+      }
+      return result;
     } catch (e) {
+      final err = e.toString();
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: err,
       );
-      return false;
+      return SendUserCodeResult(
+        status: SendUserCodeStatus.error,
+        errorMessage: err,
+      );
+    }
+  }
+
+  Future<SendUserCodeResult> registerAndSendCode({
+    required String email,
+    required String firstName,
+    required String lastName,
+  }) async {
+    return sendUserCode(
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+    );
+  }
+
+  Future<LoginResult> loginWithCode({
+    required String email,
+    required String code,
+  }) async {
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      errorMessage: null,
+    );
+
+    try {
+      final result = await authService.loginWithCode(
+        email: email,
+        code: code,
+      );
+
+      if (result.isSuccess && result.user != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: result.user,
+          token: result.token,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: result.errorMessage ?? 'Invalid verification code',
+        );
+      }
+      return result;
+    } catch (e) {
+      final err = e.toString();
+      state = state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: err,
+      );
+      return LoginResult(
+        isSuccess: false,
+        errorMessage: err,
+      );
     }
   }
 
   Future<void> logout() async {
     await authService.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  void resetFlow() {
+    state = state.copyWith(
+      status: AuthStatus.unauthenticated,
+      errorMessage: null,
+    );
   }
 
   void updateUser(EmUser user) {
