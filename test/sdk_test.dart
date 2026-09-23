@@ -42,6 +42,49 @@ void main() {
       expect(fromJson.category, ServerCategory.softwareTools);
     });
 
+    test('ChatMessage and MessageRenderType work properly', () {
+      final textMsg = ChatMessage(
+        messageId: 'msg_1',
+        channel: 'general',
+        userId: 'user_1',
+        message: 'Hello World',
+        createdAt: DateTime.now(),
+      );
+      expect(textMsg.messageRenderType, MessageRenderType.text);
+      expect(textMsg.text, 'Hello World');
+
+      final product = ProductMessageModel.sampleCatalog.first;
+      final productMsg = ChatMessage(
+        messageId: 'msg_2',
+        channel: 'general',
+        userId: 'user_2',
+        message: 'Check this product',
+        messageType: 'product',
+        product: product,
+        createdAt: DateTime.now(),
+      );
+      expect(productMsg.messageRenderType, MessageRenderType.product);
+      expect(productMsg.product?.id, product.id);
+
+      final json = productMsg.toJson();
+      final reconstructed = ChatMessage.fromJson(json);
+      expect(reconstructed.messageId, 'msg_2');
+      expect(reconstructed.messageRenderType, MessageRenderType.product);
+      expect(reconstructed.product?.title, product.title);
+
+      const chatThread = ChatModel(
+        id: 'chat_1',
+        userName: 'Alice',
+        userRole: 'Developer',
+        lastMessage: 'Ready for review',
+        time: '10:00 AM',
+        avatarColor: Color(0xFF2563EB),
+      );
+      expect(chatThread.userName, 'Alice');
+      final chatJson = chatThread.toJson();
+      expect(ChatModel.fromJson(chatJson).userName, 'Alice');
+    });
+
     test('Riverpod providers initialize correctly', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

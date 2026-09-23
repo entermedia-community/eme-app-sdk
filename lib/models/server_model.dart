@@ -51,6 +51,7 @@ class ServerModel {
   final String? lastNotification;
   final String? lastNotificationTime;
   final Color? statusColor;
+  final String serverMediaDBUrl;
 
   const ServerModel({
     required this.id,
@@ -75,6 +76,7 @@ class ServerModel {
     this.lastNotification,
     this.lastNotificationTime,
     this.statusColor,
+    this.serverMediaDBUrl = '',
   });
 
   ServerModel copyWith({
@@ -101,6 +103,7 @@ class ServerModel {
     String? lastNotificationTime,
     String? status,
     Color? statusColor,
+    String? serverMediaDBUrl,
   }) {
     return ServerModel(
       id: id ?? this.id,
@@ -125,6 +128,7 @@ class ServerModel {
       lastNotification: lastNotification ?? this.lastNotification,
       lastNotificationTime: lastNotificationTime ?? this.lastNotificationTime,
       statusColor: statusColor ?? this.statusColor,
+      serverMediaDBUrl: serverMediaDBUrl ?? this.serverMediaDBUrl,
     );
   }
 
@@ -135,9 +139,8 @@ class ServerModel {
       subtitle: json['subtitle'] as String?,
       description: json['description'] as String? ?? '',
       category: ServerCategory.fromString(json['category'] as String? ?? ''),
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
       iconData: json['iconCodePoint'] != null
           // ignore: non_const_argument_for_const_parameter
@@ -157,7 +160,8 @@ class ServerModel {
       servicePricing: json['servicePricing'] as String?,
       location: json['location'] as String?,
       isVerified: json['isVerified'] as bool? ?? true,
-      servicesOffered: (json['servicesOffered'] as List<dynamic>?)
+      servicesOffered:
+          (json['servicesOffered'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -167,6 +171,7 @@ class ServerModel {
       statusColor: json['statusColor'] != null
           ? Color(json['statusColor'] as int)
           : null,
+      serverMediaDBUrl: json['serverMediaDBUrl'] as String? ?? '',
     );
   }
 
@@ -195,6 +200,7 @@ class ServerModel {
       if (lastNotificationTime != null)
         'lastNotificationTime': lastNotificationTime,
       if (statusColor != null) 'statusColor': statusColor!.toARGB32(),
+      'serverMediaDBUrl': serverMediaDBUrl,
     };
   }
 }

@@ -17,6 +17,8 @@ abstract class IAuthService {
 
 class AuthService implements IAuthService {
   final OpenI? openI;
+  static String? currentUserId;
+  static String? get userId => currentUserId;
 
   AuthService({this.openI});
 
