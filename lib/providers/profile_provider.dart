@@ -7,17 +7,17 @@ class ProfileNotifier extends StateNotifier<ProfileModel> {
   final IApiService? apiService;
 
   ProfileNotifier({this.apiService})
-      : super(
+    : super(
         const ProfileModel(
-          id: 'usr_001',
-          name: 'Christopher.B',
-          role: 'CEO',
-          bio: 'Cool guy',
-          tags: ['Programmer', 'Dude'],
-          avatarUrl: 'https://randomuser.me/api/portraits/men/79.jpg',
-          portfolioLabel: 'PORTFOLIO',
-          totalServers: 8,
-          totalConnections: 248,
+          id: '',
+          name: '',
+          role: '',
+          bio: '',
+          tags: [],
+          avatarUrl: '',
+          portfolioLabel: '',
+          totalServers: 0,
+          totalConnections: 0,
         ),
       );
 
