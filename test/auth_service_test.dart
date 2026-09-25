@@ -126,6 +126,16 @@ void main() {
       expect(loginResult.token, 'token_xyz123');
       expect(loginResult.user?.fullName, 'Jane Smith');
       expect(loginResult.user?.displayName, 'janesmith');
+
+      final oauthTokenJson = {
+        'access_token': 'oauth_token_789',
+        'token_type': 'bearer',
+        'email': 'tokenuser@example.com',
+      };
+      final oauthResult = LoginResult.fromJson(oauthTokenJson);
+      expect(oauthResult.isSuccess, true);
+      expect(oauthResult.token, 'oauth_token_789');
+      expect(oauthResult.user?.email, 'tokenuser@example.com');
     });
   });
 }

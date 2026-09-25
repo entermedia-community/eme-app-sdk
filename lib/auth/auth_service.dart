@@ -72,6 +72,9 @@ class AuthService implements IAuthService {
         'lastname': lastName.trim(),
     };
 
+    debugPrint('[AuthService] sendUserCode POST URL: $url');
+    debugPrint('[AuthService] sendUserCode Payload: ${jsonEncode(body)}');
+
     try {
       final response = await _dio.post(
         url,
@@ -84,6 +87,10 @@ class AuthService implements IAuthService {
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
+      );
+
+      debugPrint(
+        '[AuthService] sendUserCode Response [${response.statusCode}]: ${response.data}',
       );
 
       final dynamic data = response.data;
@@ -101,7 +108,7 @@ class AuthService implements IAuthService {
       // Mock fallback simulation for dev/testing when offline or mock server
       return _mockSendUserCode(cleanEmail, firstName, lastName);
     } catch (e, stack) {
-      debugPrint('AuthService.sendUserCode error: $e');
+      debugPrint('[AuthService] sendUserCode error: $e');
       AppErrorHandler.recordNonFatal(
         e,
         stack,
@@ -141,14 +148,16 @@ class AuthService implements IAuthService {
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanCode = code.trim();
-    final url = _cleanUrl('/services/authentication/login.json');
+    final url = _cleanUrl('/services/authentication/token.json');
 
     final body = <String, dynamic>{
+      'grant_type': 'otp',
       'email': cleanEmail,
       'code': cleanCode,
-      'usercode': cleanCode,
-      'password': cleanCode,
     };
+
+    debugPrint('[AuthService] loginWithCode POST URL: $url');
+    debugPrint('[AuthService] loginWithCode Payload: ${jsonEncode(body)}');
 
     try {
       final response = await _dio.post(
@@ -162,6 +171,10 @@ class AuthService implements IAuthService {
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
+      );
+
+      debugPrint(
+        '[AuthService] loginWithCode Response [${response.statusCode}]: ${response.data}',
       );
 
       final dynamic data = response.data;
@@ -186,7 +199,7 @@ class AuthService implements IAuthService {
 
       return result;
     } catch (e, stack) {
-      debugPrint('AuthService.loginWithCode error: $e');
+      debugPrint('[AuthService] loginWithCode error: $e');
       AppErrorHandler.recordNonFatal(
         e,
         stack,
@@ -255,6 +268,11 @@ class AuthService implements IAuthService {
 
     final url = _cleanUrl('/services/authentication/user.json');
 
+    debugPrint('[AuthService] checkAuthSession POST URL: $url');
+    debugPrint(
+      '[AuthService] checkAuthSession Headers: Authorization Bearer $token, entermediakey: $token',
+    );
+
     try {
       final response = await _dio.post(
         url,
@@ -268,6 +286,10 @@ class AuthService implements IAuthService {
           sendTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 8),
         ),
+      );
+
+      debugPrint(
+        '[AuthService] checkAuthSession Response [${response.statusCode}]: ${response.data}',
       );
 
       if (response.statusCode == 200) {
@@ -300,7 +322,7 @@ class AuthService implements IAuthService {
       // Return cached user if endpoint unavailable (e.g. offline)
       return cachedUser;
     } catch (e, stack) {
-      debugPrint('AuthService.checkAuthSession error: $e');
+      debugPrint('[AuthService] checkAuthSession error: $e');
       AppErrorHandler.recordNonFatal(
         e,
         stack,

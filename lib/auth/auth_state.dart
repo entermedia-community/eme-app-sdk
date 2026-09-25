@@ -79,10 +79,15 @@ class LoginResult {
         : json;
 
     final status = response['status']?.toString().toLowerCase();
-    final rawError = response['error']?.toString() ?? json['error']?.toString();
+    final rawError = response['error']?.toString() ??
+        json['error_description']?.toString() ??
+        json['error']?.toString();
     final token = json['entermediakey']?.toString() ??
         response['entermediakey']?.toString() ??
-        json['token']?.toString();
+        json['access_token']?.toString() ??
+        response['access_token']?.toString() ??
+        json['token']?.toString() ??
+        response['token']?.toString();
 
     EmUser? user;
     if (json['user'] is Map<String, dynamic>) {
@@ -90,12 +95,21 @@ class LoginResult {
       if (token != null && token.isNotEmpty) {
         user = user.copyWith(entermediakey: token);
       }
-    } else if (status == 'ok' && token != null) {
-      final userId = (response['user'] ?? json['user'] ?? '').toString();
-      user = EmUser(userid: userId, entermediakey: token);
+    } else if (response['user'] is Map<String, dynamic>) {
+      user = EmUser.fromJson(response['user'] as Map<String, dynamic>);
+      if (token != null && token.isNotEmpty) {
+        user = user.copyWith(entermediakey: token);
+      }
+    } else if (token != null && token.isNotEmpty) {
+      final userId = (response['user'] ?? json['user'] ?? response['userid'] ?? json['userid'] ?? '').toString();
+      user = EmUser(
+        userid: userId.isNotEmpty ? userId : 'usr_${(json['email'] ?? response['email'] ?? '').hashCode.abs()}',
+        email: (json['email'] ?? response['email'] ?? '').toString(),
+        entermediakey: token,
+      );
     }
 
-    final isOk = (status == 'ok' || token != null) && (rawError == null || rawError.isEmpty);
+    final isOk = (status == 'ok' || status == 'success' || token != null) && (rawError == null || rawError.isEmpty);
 
     return LoginResult(
       isSuccess: isOk,
