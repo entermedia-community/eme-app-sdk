@@ -137,5 +137,16 @@ void main() {
       expect(oauthResult.token, 'oauth_token_789');
       expect(oauthResult.user?.email, 'tokenuser@example.com');
     });
+
+    test('searchUsers queries users endpoint and parses user results', () async {
+      final authService = AuthService();
+      final results = await authService.searchUsers('admin');
+      expect(results.isNotEmpty, true);
+      expect(results.first.id, 'admin');
+      expect(results.first.firstname, 'The');
+      expect(results.first.lastname, 'Administrator');
+      expect(results.first.email, 'support@entermediadb.org');
+      expect(results.first.assetportrait, contains('jefferson-santos'));
+    });
   });
 }

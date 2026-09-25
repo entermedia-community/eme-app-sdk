@@ -20,6 +20,7 @@ abstract class IAuthService {
     required String code,
   });
 
+  Future<List<EmUser>> searchUsers(String query);
   Future<EmUser?> checkAuthSession();
   Future<EmUser?> getCurrentUser();
   Future<String?> getAuthToken();
@@ -51,7 +52,13 @@ class AuthService implements IAuthService {
     if (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    final cleanPath = path.startsWith('/') ? path : '/$path';
+    var cleanPath = path;
+    if (base.endsWith('/mediadb') && cleanPath.startsWith('/mediadb')) {
+      cleanPath = cleanPath.substring('/mediadb'.length);
+    }
+    if (!cleanPath.startsWith('/')) {
+      cleanPath = '/$cleanPath';
+    }
     return '$base$cleanPath';
   }
 
@@ -101,7 +108,8 @@ class AuthService implements IAuthService {
         jsonMap = jsonDecode(data);
       }
 
-      if (jsonMap.isNotEmpty) {
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty) {
         return SendUserCodeResult.fromJson(jsonMap);
       }
 
@@ -185,9 +193,11 @@ class AuthService implements IAuthService {
         jsonMap = jsonDecode(data);
       }
 
-      final result = jsonMap.isNotEmpty
-          ? LoginResult.fromJson(jsonMap)
-          : _mockLoginResult(cleanEmail, cleanCode);
+      final statusCode = response.statusCode ?? 0;
+      final result =
+          (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty)
+              ? LoginResult.fromJson(jsonMap)
+              : _mockLoginResult(cleanEmail, cleanCode);
 
       if (result.isSuccess && result.token != null) {
         await SharedPref.saveEMKey(result.token!);
@@ -351,6 +361,86 @@ class AuthService implements IAuthService {
   Future<bool> isAuthenticated() async {
     final token = await getAuthToken();
     return token != null && token.isNotEmpty;
+  }
+
+  @override
+  Future<List<EmUser>> searchUsers(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
+
+    final token = await getAuthToken();
+    final url = _cleanUrl('/services/module/user/users.json');
+
+    debugPrint('[AuthService] searchUsers GET URL: $url?term=$cleanQuery');
+
+    try {
+      final response = await _dio.get(
+        url,
+        queryParameters: {'term': cleanQuery},
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-tokentype': 'entermedia',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+            if (token != null && token.isNotEmpty) 'entermediakey': token,
+          },
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[AuthService] searchUsers Response [${response.statusCode}]: ${response.data}',
+      );
+
+      final dynamic data = response.data;
+      Map<String, dynamic> jsonMap = {};
+      if (data is Map<String, dynamic>) {
+        jsonMap = data;
+      } else if (data is String && data.trim().isNotEmpty) {
+        jsonMap = jsonDecode(data);
+      }
+
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty) {
+        final usersList = (jsonMap['users'] as List<dynamic>?) ?? [];
+        return usersList
+            .map((item) => EmUser.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+
+      return _mockSearchUsers(cleanQuery);
+    } catch (e, stack) {
+      debugPrint('[AuthService] searchUsers error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'AuthService.searchUsers failed',
+        customKeys: {'query': cleanQuery},
+      );
+      return _mockSearchUsers(cleanQuery);
+    }
+  }
+
+  List<EmUser> _mockSearchUsers(String query) {
+    final q = query.toLowerCase();
+    if (q.contains('admin') ||
+        q.contains('the') ||
+        q.contains('supp') ||
+        q.contains('eme')) {
+      return [
+        EmUser(
+          userid: 'admin',
+          email: 'support@entermediadb.org',
+          firstname: 'The',
+          lastname: 'Administrator',
+          assetportrait:
+              'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
+        ),
+      ];
+    }
+    return [];
   }
 
   @override

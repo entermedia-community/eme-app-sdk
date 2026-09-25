@@ -33,6 +33,7 @@ abstract class IApiService {
   Future<List<GoalItemModel>> fetchServerGoals(String serverId);
   Future<List<TransactionItemModel>> fetchServerTransactions(String serverId);
   Future<List<BlogPostModel>> fetchServerBlogPosts(String serverId);
+  Future<List<EmeProfileModel>> searchUsers(String query);
 }
 
 /// Concrete implementation of the API Service
@@ -301,6 +302,37 @@ class ApiService implements IApiService {
     return list
         .map((item) =>
             EmeProfileModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<EmeProfileModel>> searchUsers(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
+
+    final mock = {
+      'response': {'status': 'ok'},
+      'users': [
+        {
+          'id': 'admin',
+          'firstname': 'The',
+          'lastname': 'Administrator',
+          'email': 'support@entermediadb.org',
+          'assetportrait':
+              'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
+        }
+      ]
+    };
+
+    final res = await _get(
+      '/services/module/user/users.json?term=${Uri.encodeQueryComponent(cleanQuery)}',
+      mockFallback: mock,
+    );
+
+    final usersList = (res['users'] as List<dynamic>?) ?? [];
+    return usersList
+        .map((item) =>
+            EmeProfileModel.fromUserJson(item as Map<String, dynamic>))
         .toList();
   }
 

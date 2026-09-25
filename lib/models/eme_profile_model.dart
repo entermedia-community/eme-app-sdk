@@ -113,11 +113,102 @@ class EmeProfileModel {
     );
   }
 
-  factory EmeProfileModel.fromJson(Map<String, dynamic> json) {
+  factory EmeProfileModel.fromEmUser(dynamic emUser) {
+    final properties = (emUser.properties as Map<String, dynamic>?) ?? {};
+    final id = (emUser.id ?? '').toString();
+    final name = (emUser.fullName ?? '').toString().isNotEmpty
+        ? emUser.fullName.toString()
+        : id;
+    final email = emUser.email?.toString();
+    final portrait = emUser.assetportrait?.toString();
+
     return EmeProfileModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      specialistTitle: json['specialistTitle'] as String?,
+      id: id,
+      name: name,
+      specialistTitle: email,
+      subtitle: emUser.screenname?.toString() ?? email,
+      description: properties['description']?.toString() ??
+          (email != null && email.isNotEmpty ? 'Contact: $email' : 'EME Verified Member'),
+      category: ProfileCategory.softwareTools,
+      tags: email != null && email.isNotEmpty ? [email] : const ['EME Member'],
+      iconData: Icons.person_rounded,
+      avatarUrl: portrait,
+      primaryColor: const Color(0xFF0284C7),
+      secondaryColor: const Color(0xFFF0F9FF),
+      memberCount: 1,
+      rating: 5.0,
+      reviewsCount: 1,
+      location: properties['location']?.toString(),
+      isVerified: true,
+      servicesOffered: const [],
+    );
+  }
+
+  factory EmeProfileModel.fromUserJson(Map<String, dynamic> json) {
+    final rawId = (json['id'] ?? json['userid'] ?? '').toString();
+    final rawFirst = (json['firstname'] ?? json['firstName'] ?? json['first_name'])?.toString() ?? '';
+    final rawLast = (json['lastname'] ?? json['lastName'] ?? json['last_name'])?.toString() ?? '';
+    final rawScreen = (json['screenname'] ?? json['screenName'] ?? json['screen_name'])?.toString();
+    final rawEmail = json['email']?.toString();
+    final rawPortrait = (json['assetportrait'] ?? json['assetPortrait'] ?? json['avatarUrl'])?.toString();
+    final rawTitle = (json['specialistTitle'] ?? json['jobtitle'] ?? json['role'] ?? json['title'])?.toString();
+    final rawDesc = (json['description'] ?? json['bio'] ?? rawEmail ?? '').toString();
+    final rawLocation = (json['location'] ?? json['city'] ?? json['country'])?.toString();
+
+    String name = '$rawFirst $rawLast'.trim();
+    if (name.isEmpty) {
+      name = rawScreen ?? rawEmail ?? rawId;
+    }
+
+    final categoryStr = json['category']?.toString() ?? '';
+    final category = categoryStr.isNotEmpty
+        ? ProfileCategory.fromString(categoryStr)
+        : ProfileCategory.softwareTools;
+
+    return EmeProfileModel(
+      id: rawId,
+      name: name,
+      specialistTitle: rawTitle ?? (rawEmail != null && rawEmail.isNotEmpty ? rawEmail : null),
+      subtitle: rawEmail,
+      description: rawDesc.isNotEmpty
+          ? rawDesc
+          : (rawEmail != null && rawEmail.isNotEmpty ? 'Contact: $rawEmail' : 'EME Verified Member'),
+      category: category,
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          (rawEmail != null && rawEmail.isNotEmpty ? [rawEmail] : ['EME Member']),
+      iconData: Icons.person_rounded,
+      avatarUrl: rawPortrait,
+      primaryColor: const Color(0xFF0284C7),
+      secondaryColor: const Color(0xFFF0F9FF),
+      memberCount: (json['memberCount'] as num?)?.toInt() ?? 1,
+      rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
+      reviewsCount: (json['reviewsCount'] as num?)?.toInt() ?? 1,
+      servicePricing: json['servicePricing']?.toString(),
+      location: rawLocation,
+      isVerified: true,
+      servicesOffered: (json['servicesOffered'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+    );
+  }
+
+  factory EmeProfileModel.fromJson(Map<String, dynamic> json) {
+    final rawFirst = (json['firstname'] ?? json['firstName'] ?? json['first_name'])?.toString() ?? '';
+    final rawLast = (json['lastname'] ?? json['lastName'] ?? json['last_name'])?.toString() ?? '';
+    final fallbackName = '$rawFirst $rawLast'.trim();
+    final name = (json['name'] as String?)?.isNotEmpty == true
+        ? (json['name'] as String)
+        : (fallbackName.isNotEmpty
+            ? fallbackName
+            : (json['screenname'] ?? json['email'] ?? json['id'] ?? '').toString());
+
+    final avatar = (json['avatarUrl'] ?? json['assetportrait'] ?? json['assetPortrait']) as String?;
+
+    return EmeProfileModel(
+      id: (json['id'] ?? json['userid'] ?? '').toString(),
+      name: name,
+      specialistTitle: json['specialistTitle'] as String? ?? json['email'] as String?,
       subtitle: json['subtitle'] as String?,
       description: json['description'] as String? ?? '',
       category: ProfileCategory.fromString(json['category'] as String? ?? ''),
@@ -129,7 +220,7 @@ class EmeProfileModel {
           // ignore: non_const_argument_for_const_parameter
           ? IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
           : Icons.person_rounded,
-      avatarUrl: json['avatarUrl'] as String?,
+      avatarUrl: avatar,
       primaryColor: json['primaryColor'] != null
           ? Color(json['primaryColor'] as int)
           : const Color(0xFF2563EB),
