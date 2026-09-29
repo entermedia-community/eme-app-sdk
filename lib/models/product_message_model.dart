@@ -2,18 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Enum representing the supported product categories in chat.
 /// Easily extensible for future categories (events, micro-investments, services, etc.)
-enum ProductType {
-  ecommerce,
-  rideshare,
-  rental,
-}
+enum ProductType { ecommerce, rideshare, rental }
 
 /// Subcategory for rental products
-enum RentalCategory {
-  house,
-  vehicle,
-  gear,
-}
+enum RentalCategory { house, vehicle, gear }
 
 /// Comprehensive model for products sent and rendered in chat conversations.
 class ProductMessageModel {
@@ -96,8 +88,9 @@ class ProductMessageModel {
 
   /// Formatted full price with unit
   String get formattedPrice {
-    final formattedNum =
-        price % 1 == 0 ? price.toInt().toString() : price.toStringAsFixed(2);
+    final formattedNum = price % 1 == 0
+        ? price.toInt().toString()
+        : price.toStringAsFixed(2);
     final unit = priceUnit != null ? ' $priceUnit' : '';
     return '$currency$formattedNum$unit';
   }
@@ -110,7 +103,9 @@ class ProductMessageModel {
       case ProductType.rideshare:
         return 'Book Seat';
       case ProductType.rental:
-        return rentalCategory == RentalCategory.house ? 'Book Stay' : 'Rent Now';
+        return rentalCategory == RentalCategory.house
+            ? 'Book Stay'
+            : 'Rent Now';
     }
   }
 
@@ -322,18 +317,14 @@ class ProductMessageModel {
       currency: json['currency'] as String? ?? '\$',
       priceUnit: json['priceUnit'] as String?,
       imageUrl: json['imageUrl'] as String?,
-      iconData: json['iconCodePoint'] != null
-          // ignore: non_const_argument_for_const_parameter
-          ? IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
-          : null,
+      iconData: null,
       rating: (json['rating'] as num?)?.toDouble() ?? 4.9,
       reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
       sellerOrHostName: json['sellerOrHostName'] as String? ?? '',
       sellerOrHostRole: json['sellerOrHostRole'] as String? ?? '',
       location: json['location'] as String?,
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
       metadata: json['metadata'] as Map<String, dynamic>? ?? const {},
       origin: json['origin'] as String?,
@@ -345,7 +336,8 @@ class ProductMessageModel {
       driverName: json['driverName'] as String?,
       driverRating: (json['driverRating'] as num?)?.toDouble(),
       rentalCategory: parsedRentalCategory,
-      amenitiesOrSpecs: (json['amenitiesOrSpecs'] as List<dynamic>?)
+      amenitiesOrSpecs:
+          (json['amenitiesOrSpecs'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],

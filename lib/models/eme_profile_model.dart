@@ -255,10 +255,7 @@ class EmeProfileModel {
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
-      iconData: json['iconCodePoint'] != null
-          // ignore: non_const_argument_for_const_parameter
-          ? IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
-          : Icons.person_rounded,
+      iconData: Icons.person_rounded,
       avatarUrl: avatar,
       primaryColor: json['primaryColor'] != null
           ? Color(json['primaryColor'] as int)

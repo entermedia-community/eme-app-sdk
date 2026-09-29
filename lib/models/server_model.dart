@@ -142,10 +142,7 @@ class ServerModel {
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
-      iconData: json['iconCodePoint'] != null
-          // ignore: non_const_argument_for_const_parameter
-          ? IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
-          : Icons.hub_rounded,
+      iconData: Icons.hub_rounded,
       primaryColor: json['primaryColor'] != null
           ? Color(json['primaryColor'] as int)
           : const Color(0xFF2563EB),

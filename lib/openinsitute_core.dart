@@ -1,6 +1,5 @@
 import 'dart:async' show Future, TimeoutException;
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart' hide Response;
@@ -170,7 +169,7 @@ class OpenI {
       case 408:
         throw TimeoutException(response.data.toString());
       case 500:
-        throw HttpException(response.data.toString());
+        throw CustomException(response.data.toString(), "Server Error: ");
       default:
         break;
     }

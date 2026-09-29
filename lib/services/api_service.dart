@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../auth/auth_service.dart';
@@ -48,13 +47,11 @@ abstract class IApiService {
 /// Concrete implementation of the API Service
 class ApiService implements IApiService {
   final ApiConfig config;
-  final HttpClient _httpClient;
+  final Dio _dio;
 
-  ApiService({ApiConfig? config})
+  ApiService({ApiConfig? config, Dio? dio})
     : config = config ?? const ApiConfig(),
-      _httpClient = HttpClient() {
-    _httpClient.connectionTimeout = (config ?? const ApiConfig()).timeout;
-  }
+      _dio = dio ?? DioUtil.dio;
 
   /// Helper to perform HTTP GET requests with fallback to mock data
   Future<dynamic> _get(
@@ -70,18 +67,29 @@ class ApiService implements IApiService {
     }
 
     try {
-      final uri = Uri.parse('${config.baseUrl}$path');
-      final request = await _httpClient.getUrl(uri);
-      request.headers.set('Content-Type', 'application/json');
-      final response = await request.close().timeout(config.timeout);
+      final url = '${config.baseUrl}$path';
+      final response = await _dio.get(
+        url,
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: config.timeout,
+          receiveTimeout: config.timeout,
+        ),
+      );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final responseBody = await response.transform(utf8.decoder).join();
-        return jsonDecode(responseBody);
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        dynamic data = response.data;
+        if (data is String && data.trim().isNotEmpty) {
+          try {
+            data = jsonDecode(data);
+          } catch (_) {}
+        }
+        return data;
       } else {
-        throw HttpException(
-          'API error ${response.statusCode}: ${response.reasonPhrase}',
-          uri: uri,
+        throw Exception(
+          'API error ${response.statusCode}: ${response.statusMessage}',
         );
       }
     } catch (e) {

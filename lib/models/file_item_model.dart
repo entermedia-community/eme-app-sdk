@@ -50,10 +50,7 @@ class FileItemModel {
       category: json['category'] as String? ?? '',
       size: json['size'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
-      icon: json['iconCodePoint'] != null
-          // ignore: non_const_argument_for_const_parameter
-          ? IconData(json['iconCodePoint'] as int, fontFamily: 'MaterialIcons')
-          : Icons.insert_drive_file_rounded,
+      icon: Icons.insert_drive_file_rounded,
       color: json['color'] != null
           ? Color(json['color'] as int)
           : const Color(0xFF3B82F6),
