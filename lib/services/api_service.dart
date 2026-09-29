@@ -1,7 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import '../auth/auth_service.dart';
 import '../models/models.dart';
+import '../openinsitute_core.dart';
+import '../utils/dio.dart';
+import '../utils/error_handler.dart';
+import 'shared_preferences.dart';
 
 /// Configuration for the API Service
 class ApiConfig {
@@ -11,9 +18,9 @@ class ApiConfig {
   final Duration simulatedDelay;
 
   const ApiConfig({
-    this.baseUrl = 'https://api.emeworld.org/v1',
+    this.baseUrl = 'http://localhost.com:8080/site/mediadb',
     this.timeout = const Duration(seconds: 10),
-    this.useMockFallback = true,
+    this.useMockFallback = false,
     this.simulatedDelay = const Duration(milliseconds: 350),
   });
 }
@@ -29,11 +36,13 @@ abstract class IApiService {
     ProductType? type,
   });
   Future<List<ChatModel>> fetchChats();
+  Future<List<ChatMessage>> fetchChatMessages(String channelId);
   Future<List<FileItemModel>> fetchFiles({String? serverId});
   Future<List<GoalItemModel>> fetchServerGoals(String serverId);
   Future<List<TransactionItemModel>> fetchServerTransactions(String serverId);
   Future<List<BlogPostModel>> fetchServerBlogPosts(String serverId);
   Future<List<EmeProfileModel>> searchUsers(String query);
+  Future<List<EmeProfileModel>> fetchUsers();
 }
 
 /// Concrete implementation of the API Service
@@ -42,8 +51,8 @@ class ApiService implements IApiService {
   final HttpClient _httpClient;
 
   ApiService({ApiConfig? config})
-      : config = config ?? const ApiConfig(),
-        _httpClient = HttpClient() {
+    : config = config ?? const ApiConfig(),
+      _httpClient = HttpClient() {
     _httpClient.connectionTimeout = (config ?? const ApiConfig()).timeout;
   }
 
@@ -167,7 +176,7 @@ class ApiService implements IApiService {
           'lastNotificationTime': '20m ago',
           'statusColor': 0xFFD97706,
         },
-      ]
+      ],
     };
 
     final res = await _get('/servers', mockFallback: mock);
@@ -181,9 +190,9 @@ class ApiService implements IApiService {
   Future<ServerModel?> fetchServerById(String id) async {
     final servers = await fetchServers();
     return servers.cast<ServerModel?>().firstWhere(
-          (s) => s?.id == id,
-          orElse: () => null,
-        );
+      (s) => s?.id == id,
+      orElse: () => null,
+    );
   }
 
   // ==========================================
@@ -192,117 +201,75 @@ class ApiService implements IApiService {
 
   @override
   Future<List<EmeProfileModel>> fetchSpecialistProfiles() async {
-    final mock = {
-      'data': [
-        {
-          'id': 'ind_001',
-          'name': 'Dr. Maya Lin',
-          'specialistTitle': 'Bio-credit & Hydrology Auditor',
-          'subtitle': 'SENIOR ECOLOGICAL SCIENTIST',
-          'description':
-              'Specializing in decentralized freshwater telemetry, watershed validation, and verifiable biodiversity impact certificates.',
-          'category': 'ecoTourism',
-          'tags': ['Eco Tourism', 'Research', 'Social Services'],
-          'iconCodePoint': 0xf0333,
-          'avatarUrl': 'https://randomuser.me/api/portraits/women/44.jpg',
-          'primaryColor': 0xFF0284C7,
-          'secondaryColor': 0xFFF0F9FF,
-          'memberCount': 42,
-          'rating': 4.9,
-          'reviewsCount': 142,
-          'servicePricing': r'$60/hr • Grants',
-          'location': 'Panajachel, Guatemala',
-          'isVerified': true,
-          'servicesOffered': [
-            'Water Quality Certification',
-            'Bio-credit Verification',
-            'Watershed GIS Analysis',
-          ],
-        },
-        {
-          'id': 'ind_002',
-          'name': 'Marcus Chen',
-          'specialistTitle': 'Autonomous AI Agent Architect',
-          'subtitle': 'EX-STANFORD AI LAB',
-          'description':
-              'Builds decentralized multi-agent workflows, model quantization pipelines, and privacy-preserving inference nodes.',
-          'category': 'artificialIntelligence',
-          'tags': ['Artificial Intelligence', 'Software Tools'],
-          'iconCodePoint': 0xf00b3,
-          'avatarUrl': 'https://randomuser.me/api/portraits/men/32.jpg',
-          'primaryColor': 0xFF8B5CF6,
-          'secondaryColor': 0xFFF5F3FF,
-          'memberCount': 89,
-          'rating': 5.0,
-          'reviewsCount': 89,
-          'servicePricing': r'$85/hr • Escrow',
-          'location': 'Singapore • Remote',
-          'isVerified': true,
-          'servicesOffered': [
-            'Multi-Agent System Architecture',
-            'Model Quantization (GGUF/AWQ)',
-            'Agentic Tool Calling Integration',
-          ],
-        },
-        {
-          'id': 'ind_003',
-          'name': 'Sofia Alcantara',
-          'specialistTitle': 'Regenerative Finance & Tokenomics Advisor',
-          'subtitle': 'IMPACT PROTOCOL STRATEGIST',
-          'description':
-              'Advising communities on micro-credit token design, impact bonds, and decentralized treasury management.',
-          'category': 'finance',
-          'tags': ['Finance', 'Startup', 'Social Services'],
-          'iconCodePoint': 0xe041,
-          'avatarUrl': 'https://randomuser.me/api/portraits/women/65.jpg',
-          'primaryColor': 0xFF10B981,
-          'secondaryColor': 0xFFECFDF5,
-          'memberCount': 76,
-          'rating': 4.8,
-          'reviewsCount': 76,
-          'servicePricing': r'$50/hr • DAO',
-          'location': 'Berlin, Germany',
-          'isVerified': true,
-          'servicesOffered': [
-            'DeFi & Impact Tokenomics Design',
-            'Micro-lending Mesh Setup',
-            'Treasury Multi-sig Governance',
-          ],
-        },
-        {
-          'id': 'ind_005',
-          'name': 'Elena Vance',
-          'specialistTitle': 'Smart Contract & Security Auditor',
-          'subtitle': 'ZK-SNARK & CONSENSUS AUDITOR',
-          'description':
-              'Formal verification and vulnerability audits for cross-chain bridges, token contracts, and zero-knowledge identity protocols.',
-          'category': 'softwareTools',
-          'tags': ['Software Tools', 'Finance'],
-          'iconCodePoint': 0xe562,
-          'avatarUrl': 'https://randomuser.me/api/portraits/women/33.jpg',
-          'primaryColor': 0xFF6366F1,
-          'secondaryColor': 0xFFEEF2FF,
-          'memberCount': 215,
-          'rating': 5.0,
-          'reviewsCount': 215,
-          'servicePricing': r'$95/hr',
-          'location': 'Zurich, Switzerland',
-          'isVerified': true,
-          'servicesOffered': [
-            'Solidity & Rust Contract Audits',
-            'ZK Circuit Security Verification',
-            'Economic Attack Simulation',
-          ],
-        },
-      ]
-    };
+    return fetchUsers();
+  }
 
-    final res = await _get('/specialists', mockFallback: mock);
-    final list = res['data'] as List<dynamic>? ?? [];
-    return list
-        .map((item) =>
-            EmeProfileModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+  @override
+  Future<List<EmeProfileModel>> fetchUsers() async {
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final oi = OpenI.instance;
+    final base = (oi != null && oi.settings.mediadb.isNotEmpty)
+        ? oi.settings.mediadb
+        : 'http://localhost.com:8080/site/mediadb';
+    var cleanBase = base.trim();
+    if (cleanBase.endsWith('/')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 1);
+    }
+    final primaryUrl = '$cleanBase/services/module/user/users.json';
+
+    debugPrint('[ApiService] fetchUsers GET URL: $primaryUrl');
+    try {
+      final dio = DioUtil.dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      Response response = await dio.get(
+        primaryUrl,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchUsers response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        final usersList = (data['users'] as List<dynamic>?) ?? [];
+        if (usersList.isNotEmpty) {
+          return usersList
+              .map(
+                (item) =>
+                    EmeProfileModel.fromUserJson(item as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchUsers network error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchUsers failed, falling back',
+        customKeys: {'url': primaryUrl},
+      );
+    }
+    return [];
   }
 
   @override
@@ -319,20 +286,21 @@ class ApiService implements IApiService {
           'lastname': 'Administrator',
           'email': 'support@entermediadb.org',
           'assetportrait':
-              'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
-        }
-      ]
+              'http://localhost.com:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
+        },
+      ],
     };
 
     final res = await _get(
-      '/services/module/user/users.json?term=${Uri.encodeQueryComponent(cleanQuery)}',
+      '/services/module/user/usersearch.json?term=${Uri.encodeQueryComponent(cleanQuery)}',
       mockFallback: mock,
     );
 
     final usersList = (res['users'] as List<dynamic>?) ?? [];
     return usersList
-        .map((item) =>
-            EmeProfileModel.fromUserJson(item as Map<String, dynamic>))
+        .map(
+          (item) => EmeProfileModel.fromUserJson(item as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -354,7 +322,7 @@ class ApiService implements IApiService {
         'portfolioLabel': 'PORTFOLIO',
         'totalServers': 8,
         'totalConnections': 248,
-      }
+      },
     };
 
     final res = await _get('/users/${userId ?? "me"}', mockFallback: mock);
@@ -371,15 +339,15 @@ class ApiService implements IApiService {
     ProductType? type,
   }) async {
     final mock = {
-      'data':
-          ProductMessageModel.sampleCatalog.map((p) => p.toJson()).toList(),
+      'data': ProductMessageModel.sampleCatalog.map((p) => p.toJson()).toList(),
     };
 
     final res = await _get('/products', mockFallback: mock);
     final list = res['data'] as List<dynamic>? ?? [];
     var products = list
-        .map((item) =>
-            ProductMessageModel.fromJson(item as Map<String, dynamic>))
+        .map(
+          (item) => ProductMessageModel.fromJson(item as Map<String, dynamic>),
+        )
         .toList();
 
     if (type != null) {
@@ -394,63 +362,140 @@ class ApiService implements IApiService {
 
   @override
   Future<List<ChatModel>> fetchChats() async {
-    final mock = {
-      'data': [
-        {
-          'id': 'chat_2',
-          'userName': 'Elena Rostova',
-          'userRole': 'Impact Bank Lead',
-          'lastMessage':
-              'Passport validation pipeline is ready for deployment.',
-          'time': '11:20 AM',
-          'unreadCount': 1,
-          'avatarColor': 0xFF0284C7,
-          'isOnline': true,
-          'avatarInitials': 'ER',
-        },
-        {
-          'id': 'chat_3',
-          'userName': 'Punaryoji Vikas',
-          'userRole': 'Rural Bioeconomy',
-          'lastMessage':
-              'Check out the new telemetry metrics from Panchayat node.',
-          'time': 'Yesterday',
-          'unreadCount': 0,
-          'avatarColor': 0xFF64748B,
-          'isOnline': false,
-          'avatarInitials': 'PV',
-        },
-        {
-          'id': 'chat_4',
-          'userName': 'David Miller',
-          'userRole': 'Fullstack Dev',
-          'lastMessage': 'Merged the Riverpod state refactoring branch.',
-          'time': 'Sep 9',
-          'unreadCount': 0,
-          'avatarColor': 0xFF8B5CF6,
-          'isOnline': false,
-          'avatarInitials': 'DM',
-        },
-        {
-          'id': 'chat_5',
-          'userName': 'Sarah Chen',
-          'userRole': 'AI Researcher',
-          'lastMessage':
-              'Inference latency reduced by 40% with the new quantization.',
-          'time': 'Sep 8',
-          'unreadCount': 0,
-          'avatarColor': 0xFFEC4899,
-          'isOnline': true,
-          'avatarInitials': 'SC',
-        },
-      ]
-    };
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final oi = OpenI.instance;
+    final base = (oi != null && oi.settings.mediadb.isNotEmpty)
+        ? oi.settings.mediadb
+        : 'http://localhost.com:8080/site/mediadb';
+    var cleanBase = base.trim();
+    if (cleanBase.endsWith('/')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 1);
+    }
+    final primaryUrl = '$cleanBase/services/module/user/chats.json';
 
-    final res = await _get('/chats', mockFallback: mock);
-    final list = res['data'] as List<dynamic>? ?? [];
-    return list
-        .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+    debugPrint('[ApiService] fetchChats GET URL: $primaryUrl');
+    try {
+      final dio = DioUtil.dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      Response response = await dio.get(
+        primaryUrl,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchChats response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        final chatsList = (data['chats'] as List<dynamic>?) ?? [];
+        return chatsList
+            .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else if (data is List<dynamic>) {
+        return data
+            .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchChats network error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchChats failed, falling back',
+        customKeys: {'url': primaryUrl},
+      );
+
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<ChatMessage>> fetchChatMessages(String channelId) async {
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final oi = OpenI.instance;
+    final base = (oi != null && oi.settings.mediadb.isNotEmpty)
+        ? oi.settings.mediadb
+        : 'http://localhost.com:8080/site/mediadb';
+    var cleanBase = base.trim();
+    if (cleanBase.endsWith('/')) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - 1);
+    }
+    final primaryUrl = '$cleanBase/services/module/user/chat.json';
+
+    debugPrint('[ApiService] fetchChatMessages GET URL: $primaryUrl?channel=$channelId');
+    try {
+      final dio = DioUtil.dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      Response response = await dio.get(
+        primaryUrl,
+        queryParameters: {'channel': channelId},
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchChatMessages response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        final messagesList = (data['messages'] as List<dynamic>?) ?? [];
+        return messagesList
+            .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else if (data is List<dynamic>) {
+        return data
+            .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchChatMessages error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchChatMessages failed',
+        customKeys: {'url': primaryUrl, 'channelId': channelId},
+      );
+      return [];
+    }
   }
 
   // ==========================================
@@ -501,7 +546,7 @@ class ApiService implements IApiService {
           'color': 0xFFF59E0B,
           'isFolder': false,
         },
-      ]
+      ],
     };
 
     final res = await _get('/files', mockFallback: mock);
@@ -584,7 +629,7 @@ class ApiService implements IApiService {
             },
           ],
         },
-      ]
+      ],
     };
 
     final res = await _get('/servers/$serverId/goals', mockFallback: mock);
@@ -636,15 +681,18 @@ class ApiService implements IApiService {
           'isCredit': true,
           'category': 'Revenue',
         },
-      ]
+      ],
     };
 
-    final res =
-        await _get('/servers/$serverId/transactions', mockFallback: mock);
+    final res = await _get(
+      '/servers/$serverId/transactions',
+      mockFallback: mock,
+    );
     final list = res['data'] as List<dynamic>? ?? [];
     return list
-        .map((item) =>
-            TransactionItemModel.fromJson(item as Map<String, dynamic>))
+        .map(
+          (item) => TransactionItemModel.fromJson(item as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -681,8 +729,7 @@ class ApiService implements IApiService {
         },
         {
           'id': 'post_03',
-          'title':
-              'Zero-Knowledge Privacy and Humanitarian Impact Passports',
+          'title': 'Zero-Knowledge Privacy and Humanitarian Impact Passports',
           'author': 'Security Research Group',
           'date': 'Aug 29, 2026',
           'readTime': '6 min read',
@@ -691,7 +738,7 @@ class ApiService implements IApiService {
           'tag': 'Research',
           'likes': 215,
         },
-      ]
+      ],
     };
 
     final res = await _get('/servers/$serverId/posts', mockFallback: mock);

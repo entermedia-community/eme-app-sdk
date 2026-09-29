@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/chat_socket_service.dart';
 
 /// Provider for the ApiService singleton/instance
 final apiServiceProvider = Provider<IApiService>((ref) {
   return ApiService();
+});
+
+/// Provider for the ChatSocketService singleton/instance
+final chatSocketServiceProvider = Provider<ChatSocketService>((ref) {
+  return ChatSocketService();
 });
 
 /// FutureProvider to fetch all servers from API
@@ -27,6 +33,13 @@ final apiSpecialistProfilesProvider =
   return api.fetchSpecialistProfiles();
 });
 
+/// FutureProvider to fetch users from /services/module/user/users.json
+final apiUsersProvider =
+    FutureProvider<List<EmeProfileModel>>((ref) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchUsers();
+});
+
 /// FutureProvider to fetch user profile from API
 final apiUserProfileProvider = FutureProvider<ProfileModel>((ref) async {
   final api = ref.watch(apiServiceProvider);
@@ -47,6 +60,13 @@ final apiProductsProvider =
 final apiChatsProvider = FutureProvider<List<ChatModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchChats();
+});
+
+/// FutureProvider to fetch chat message history from API
+final apiChatMessagesProvider =
+    FutureProvider.family<List<ChatMessage>, String>((ref, channelId) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchChatMessages(channelId);
 });
 
 /// FutureProvider to fetch files from API

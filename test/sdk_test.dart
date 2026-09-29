@@ -73,9 +73,9 @@ void main() {
       expect(reconstructed.product?.title, product.title);
 
       const chatThread = ChatModel(
-        id: 'chat_1',
+        channelId: 'chat_1',
         userName: 'Alice',
-        userRole: 'Developer',
+        displayName: 'Developer',
         lastMessage: 'Ready for review',
         time: '10:00 AM',
         avatarColor: Color(0xFF2563EB),
@@ -85,33 +85,39 @@ void main() {
       expect(ChatModel.fromJson(chatJson).userName, 'Alice');
     });
 
-    test('Riverpod providers initialize correctly and searchUsers works', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'Riverpod providers initialize correctly and searchUsers works',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      final serverState = container.read(serverProvider);
-      expect(serverState.servers.isNotEmpty, true);
+        final serverState = container.read(serverProvider);
+        expect(serverState.servers.isNotEmpty, true);
 
-      final profileState = container.read(emeProfileProvider);
-      expect(profileState.profiles.isNotEmpty, true);
+        await container.read(emeProfileProvider.notifier).loadUsers();
+        final profileState = container.read(emeProfileProvider);
+        expect(profileState.profiles.isNotEmpty, true);
 
-      await container.read(profileProvider.notifier).loadProfileFromApi();
-      final userProfile = container.read(profileProvider);
-      expect(userProfile.name, isNotEmpty);
+        await container.read(profileProvider.notifier).loadProfileFromApi();
+        final userProfile = container.read(profileProvider);
+        expect(userProfile.name, isNotEmpty);
 
-      await container.read(authProvider.notifier).checkAuthSession();
-      final authState = container.read(authProvider);
-      expect(authState.status, AuthStatus.unauthenticated);
+        await container.read(authProvider.notifier).checkAuthSession();
+        final authState = container.read(authProvider);
+        expect(authState.status, AuthStatus.unauthenticated);
 
-      // Test searching users
-      await container.read(emeProfileProvider.notifier).searchUsers('admin');
-      // Wait for debounce timer
-      await Future.delayed(const Duration(milliseconds: 350));
-      final searchedProfiles = container.read(emeProfileProvider).filteredProfiles;
-      expect(searchedProfiles.isNotEmpty, true);
-      expect(searchedProfiles.first.id, 'admin');
-      expect(searchedProfiles.first.name, 'The Administrator');
-      expect(searchedProfiles.first.avatarUrl, contains('jefferson-santos'));
-    });
+        // Test searching users
+        await container.read(emeProfileProvider.notifier).searchUsers('admin');
+        // Wait for debounce timer
+        await Future.delayed(const Duration(milliseconds: 350));
+        final searchedProfiles = container
+            .read(emeProfileProvider)
+            .filteredProfiles;
+        expect(searchedProfiles.isNotEmpty, true);
+        expect(searchedProfiles.first.username, 'admin');
+        expect(searchedProfiles.first.name, 'The Administrator');
+        expect(searchedProfiles.first.avatarUrl, contains('jefferson-santos'));
+      },
+    );
   });
 }

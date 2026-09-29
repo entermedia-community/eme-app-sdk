@@ -6,79 +6,198 @@ import 'product_message_model.dart';
 
 /// Conversation / Thread Model representing chat items in list views
 class ChatModel {
-  final String id;
+  final String? channelId;
   final String userName;
-  final String userRole;
+  final String displayName;
   final String lastMessage;
   final String time;
   final int unreadCount;
   final Color avatarColor;
   final bool isOnline;
   final String? avatarInitials;
+  final String? avatarUrl;
 
   const ChatModel({
-    required this.id,
+    this.channelId,
     required this.userName,
-    required this.userRole,
+    required this.displayName,
     required this.lastMessage,
     required this.time,
     this.unreadCount = 0,
     required this.avatarColor,
     this.isOnline = false,
     this.avatarInitials,
+    this.avatarUrl,
   });
 
   ChatModel copyWith({
-    String? id,
+    String? channelId,
     String? userName,
-    String? userRole,
+    String? displayName,
     String? lastMessage,
     String? time,
     int? unreadCount,
     Color? avatarColor,
     bool? isOnline,
     String? avatarInitials,
+    String? avatarUrl,
   }) {
     return ChatModel(
-      id: id ?? this.id,
+      channelId: channelId ?? this.channelId,
       userName: userName ?? this.userName,
-      userRole: userRole ?? this.userRole,
+      displayName: displayName ?? this.displayName,
       lastMessage: lastMessage ?? this.lastMessage,
       time: time ?? this.time,
       unreadCount: unreadCount ?? this.unreadCount,
       avatarColor: avatarColor ?? this.avatarColor,
       isOnline: isOnline ?? this.isOnline,
       avatarInitials: avatarInitials ?? this.avatarInitials,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
+    final rawFirst = json['firstname'].toString();
+    final rawLast = json['lastname'].toString();
+    final displayName = '$rawFirst $rawLast'.trim();
+
+    final rawLastMsg = json['lastmessage'];
+    String lastMsgText = '';
+    String timeText = '';
+    if (rawLastMsg is Map<String, dynamic>) {
+      lastMsgText = rawLastMsg['message']?.toString() ?? '';
+      timeText = formatChatDate(rawLastMsg['date']);
+    } else if (rawLastMsg is String) {
+      lastMsgText = rawLastMsg;
+    }
+    if (lastMsgText.isEmpty) {
+      lastMsgText = json['lastMessage']?.toString() ?? '';
+    }
+
+    final unread =
+        (json['unreadmessagecount'] ?? json['unreadCount'] as num?)?.toInt() ??
+        0;
+
+    final portrait = (json['assetportrait'])?.toString();
+
+    final initials =
+        json['avatarInitials'] as String? ??
+        (displayName.isNotEmpty
+            ? displayName
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .take(2)
+                  .map((part) => part.isNotEmpty ? part[0].toUpperCase() : '')
+                  .join()
+            : null);
+
+    final colorInt = json['avatarColor'] as int?;
+    final color = colorInt != null
+        ? Color(colorInt)
+        : _generateColor(displayName);
+
     return ChatModel(
-      id: json['id'] as String? ?? '',
-      userName: json['userName'] as String? ?? '',
-      userRole: json['userRole'] as String? ?? '',
-      lastMessage: json['lastMessage'] as String? ?? '',
-      time: json['time'] as String? ?? '',
-      unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
-      avatarColor: json['avatarColor'] != null
-          ? Color(json['avatarColor'] as int)
-          : const Color(0xFF2563EB),
+      channelId: (json['channel'] ?? '').toString(),
+      userName: json['username'],
+      displayName: displayName,
+      lastMessage: lastMsgText,
+      time: timeText,
+      unreadCount: unread,
+      avatarColor: color,
       isOnline: json['isOnline'] as bool? ?? false,
-      avatarInitials: json['avatarInitials'] as String?,
+      avatarInitials: initials,
+      avatarUrl: portrait,
     );
+  }
+
+  static Color _generateColor(String key) {
+    const colors = [
+      Color(0xFF0284C7),
+      Color(0xFF8B5CF6),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEC4899),
+      Color(0xFF6366F1),
+      Color(0xFF14B8A6),
+    ];
+    if (key.isEmpty) return colors[0];
+    return colors[key.hashCode.abs() % colors.length];
+  }
+
+  static String formatChatDate(dynamic dateVal) {
+    if (dateVal == null) return '';
+    if (dateVal is DateTime) {
+      return _formatDateTime(dateVal);
+    }
+    final str = dateVal.toString().trim();
+    if (str.isEmpty || str == 'null') return '';
+
+    final numVal = num.tryParse(str);
+    if (numVal != null) {
+      try {
+        final millis = numVal > 100000000000
+            ? numVal.toInt()
+            : (numVal * 1000).toInt();
+        return _formatDateTime(DateTime.fromMillisecondsSinceEpoch(millis));
+      } catch (_) {}
+    }
+
+    final parsed = DateTime.tryParse(str);
+    if (parsed != null) {
+      return _formatDateTime(parsed);
+    }
+
+    return str;
+  }
+
+  static String _formatDateTime(DateTime dt) {
+    final now = DateTime.now();
+    final local = dt.toLocal();
+    final diff = now.difference(local);
+
+    if (diff.inDays == 0 && now.day == local.day) {
+      final hour = local.hour > 12
+          ? local.hour - 12
+          : (local.hour == 0 ? 12 : local.hour);
+      final period = local.hour >= 12 ? 'PM' : 'AM';
+      final minute = local.minute.toString().padLeft(2, '0');
+      return '$hour:$minute $period';
+    } else if (diff.inDays == 1 || (diff.inDays < 2 && now.day != local.day)) {
+      return 'Yesterday';
+    } else if (diff.inDays < 7) {
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[local.weekday - 1];
+    } else {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${months[local.month - 1]} ${local.day}';
+    }
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'userName': userName,
-      'userRole': userRole,
+      'channel': channelId,
+      'username': userName,
+      'displayName': displayName,
       'lastMessage': lastMessage,
       'time': time,
       'unreadCount': unreadCount,
       'avatarColor': avatarColor.toARGB32(),
       'isOnline': isOnline,
       if (avatarInitials != null) 'avatarInitials': avatarInitials,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
     };
   }
 }
@@ -169,10 +288,15 @@ class AgentContextValues {
 
     ProductMessageModel? product;
     if (json['product'] != null && json['product'] is Map<String, dynamic>) {
-      product = ProductMessageModel.fromJson(json['product'] as Map<String, dynamic>);
+      product = ProductMessageModel.fromJson(
+        json['product'] as Map<String, dynamic>,
+      );
       messageRenderType = MessageRenderType.product;
-    } else if (json['productmessagemodel'] != null && json['productmessagemodel'] is Map<String, dynamic>) {
-      product = ProductMessageModel.fromJson(json['productmessagemodel'] as Map<String, dynamic>);
+    } else if (json['productmessagemodel'] != null &&
+        json['productmessagemodel'] is Map<String, dynamic>) {
+      product = ProductMessageModel.fromJson(
+        json['productmessagemodel'] as Map<String, dynamic>,
+      );
       messageRenderType = MessageRenderType.product;
     }
 
@@ -188,8 +312,11 @@ class AgentContextValues {
           ? Question.fromJson(json['question'])
           : null,
       asset: json['asset'] != null ? Asset.fromJson(json['asset']) : null,
-      progressUpdate: json['progressUpdate'] != null || json['progressupdate'] != null
-          ? ProgressUpdate.fromJson(json['progressUpdate'] ?? json['progressupdate'])
+      progressUpdate:
+          json['progressUpdate'] != null || json['progressupdate'] != null
+          ? ProgressUpdate.fromJson(
+              json['progressUpdate'] ?? json['progressupdate'],
+            )
           : (messageRenderType == MessageRenderType.progressupdate
                 ? ProgressUpdate.fromJson(json)
                 : null),
@@ -253,7 +380,9 @@ class ChatMessage {
     DateTime? parsedCreatedAt;
     final rawCreatedAt = json['date'] ?? json['createdat'];
     if (rawCreatedAt is String) {
-      parsedCreatedAt = DateTime.tryParse(rawCreatedAt)?.toLocal() ?? DateTime.now().toLocal();
+      parsedCreatedAt =
+          DateTime.tryParse(rawCreatedAt)?.toLocal() ??
+          DateTime.now().toLocal();
     } else if (rawCreatedAt is num) {
       parsedCreatedAt = DateTime.fromMillisecondsSinceEpoch(
         rawCreatedAt.toInt(),
@@ -293,16 +422,23 @@ class ChatMessage {
     // parse product
     ProductMessageModel? parsedProduct;
     if (json['product'] != null && json['product'] is Map<String, dynamic>) {
-      parsedProduct = ProductMessageModel.fromJson(json['product'] as Map<String, dynamic>);
+      parsedProduct = ProductMessageModel.fromJson(
+        json['product'] as Map<String, dynamic>,
+      );
     } else {
       parsedProduct = agentContextValues.product;
     }
 
-    final rawMessageType = json['messagetype']?.toString() ??
+    final rawMessageType =
+        json['messagetype']?.toString() ??
         (parsedProduct != null ? 'product' : 'message');
 
     return ChatMessage(
-      messageId: (json['messageid'] ?? json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()).toString(),
+      messageId:
+          (json['messageid'] ??
+                  json['id'] ??
+                  DateTime.now().millisecondsSinceEpoch.toString())
+              .toString(),
       channel: (json['channel'] ?? '').toString(),
       userId: (json['user'] ?? json['userid'] ?? '').toString(),
       message: json['message']?.toString() ?? '',
@@ -451,7 +587,9 @@ class Question {
       id: (json['id'] ?? '').toString(),
       question: (json['question'] ?? '').toString(),
       options: sortedOptions,
-      cognitiveLevel: (json['mcqcognitivelevel'] ?? json['cognitivelevel'] ?? '').toString(),
+      cognitiveLevel:
+          (json['mcqcognitivelevel'] ?? json['cognitivelevel'] ?? '')
+              .toString(),
       answer: json['answer'] != null ? Answer.fromJson(json['answer']) : null,
     );
   }

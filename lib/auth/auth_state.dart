@@ -46,7 +46,8 @@ class SendUserCodeResult {
     final status = SendUserCodeStatus.fromString(rawStatus);
     final email = response['email']?.toString();
     final rawError = response['error']?.toString() ?? json['error']?.toString();
-    final allowGuest = response['allowguestregistration'] == true ||
+    final allowGuest =
+        response['allowguestregistration'] == true ||
         response['allowguestregistration'] == 'true' ||
         json['allowguestregistration'] == true ||
         json['allowguestregistration'] == 'true';
@@ -66,6 +67,8 @@ class LoginResult {
   final String? token;
   final String? errorMessage;
 
+  String? get entermediakey => token;
+
   const LoginResult({
     required this.isSuccess,
     this.user,
@@ -79,10 +82,12 @@ class LoginResult {
         : json;
 
     final status = response['status']?.toString().toLowerCase();
-    final rawError = response['error']?.toString() ??
+    final rawError =
+        response['error']?.toString() ??
         json['error_description']?.toString() ??
         json['error']?.toString();
-    final token = json['entermediakey']?.toString() ??
+    final token =
+        json['entermediakey']?.toString() ??
         response['entermediakey']?.toString() ??
         json['access_token']?.toString() ??
         response['access_token']?.toString() ??
@@ -92,24 +97,21 @@ class LoginResult {
     EmUser? user;
     if (json['user'] is Map<String, dynamic>) {
       user = EmUser.fromJson(json['user'] as Map<String, dynamic>);
-      if (token != null && token.isNotEmpty) {
-        user = user.copyWith(entermediakey: token);
-      }
     } else if (response['user'] is Map<String, dynamic>) {
       user = EmUser.fromJson(response['user'] as Map<String, dynamic>);
-      if (token != null && token.isNotEmpty) {
-        user = user.copyWith(entermediakey: token);
-      }
-    } else if (token != null && token.isNotEmpty) {
-      final userId = (response['user'] ?? json['user'] ?? response['userid'] ?? json['userid'] ?? '').toString();
-      user = EmUser(
-        userid: userId.isNotEmpty ? userId : 'usr_${(json['email'] ?? response['email'] ?? '').hashCode.abs()}',
-        email: (json['email'] ?? response['email'] ?? '').toString(),
-        entermediakey: token,
-      );
+    } else if (json['email'] != null ||
+        json['username'] != null ||
+        json['userid'] != null) {
+      user = EmUser.fromJson(json);
+    } else if (response['email'] != null ||
+        response['username'] != null ||
+        response['userid'] != null) {
+      user = EmUser.fromJson(response);
     }
 
-    final isOk = (status == 'ok' || status == 'success' || token != null) && (rawError == null || rawError.isEmpty);
+    final isOk =
+        (status == 'ok' || status == 'success' || token != null) &&
+        (rawError == null || rawError.isEmpty);
 
     return LoginResult(
       isSuccess: isOk,
@@ -138,6 +140,8 @@ class AuthState {
   final bool allowGuestRegistration;
   final String? errorMessage;
 
+  String? get entermediakey => token;
+
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
@@ -147,7 +151,8 @@ class AuthState {
     this.errorMessage,
   });
 
-  bool get isAuthenticated => status == AuthStatus.authenticated && user != null;
+  bool get isAuthenticated =>
+      status == AuthStatus.authenticated && user != null;
   bool get isLoading => status == AuthStatus.authenticating;
   bool get isCodeSent => status == AuthStatus.codeSent;
   bool get isNeedRegistration => status == AuthStatus.needRegistration;

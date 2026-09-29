@@ -18,6 +18,8 @@ enum ProfileCategory {
   final String label;
   const ProfileCategory(this.label);
 
+  String get displayName => label;
+
   static ProfileCategory fromString(String value) {
     return ProfileCategory.values.firstWhere(
       (e) =>
@@ -31,7 +33,7 @@ enum ProfileCategory {
 typedef EmeProfileCategory = ProfileCategory;
 
 class EmeProfileModel {
-  final String id;
+  final String username;
   final String name;
   final String? specialistTitle;
   final String? subtitle;
@@ -51,7 +53,7 @@ class EmeProfileModel {
   final List<String> servicesOffered;
 
   const EmeProfileModel({
-    required this.id,
+    required this.username,
     required this.name,
     this.specialistTitle,
     this.subtitle,
@@ -72,7 +74,7 @@ class EmeProfileModel {
   });
 
   EmeProfileModel copyWith({
-    String? id,
+    String? username,
     String? name,
     String? specialistTitle,
     String? subtitle,
@@ -92,7 +94,7 @@ class EmeProfileModel {
     List<String>? servicesOffered,
   }) {
     return EmeProfileModel(
-      id: id ?? this.id,
+      username: username ?? this.username,
       name: name ?? this.name,
       specialistTitle: specialistTitle ?? this.specialistTitle,
       subtitle: subtitle ?? this.subtitle,
@@ -115,20 +117,23 @@ class EmeProfileModel {
 
   factory EmeProfileModel.fromEmUser(dynamic emUser) {
     final properties = (emUser.properties as Map<String, dynamic>?) ?? {};
-    final id = (emUser.id ?? '').toString();
+    final username = (emUser.id ?? '').toString();
     final name = (emUser.fullName ?? '').toString().isNotEmpty
         ? emUser.fullName.toString()
-        : id;
+        : username;
     final email = emUser.email?.toString();
     final portrait = emUser.assetportrait?.toString();
 
     return EmeProfileModel(
-      id: id,
+      username: username,
       name: name,
       specialistTitle: email,
       subtitle: emUser.screenname?.toString() ?? email,
-      description: properties['description']?.toString() ??
-          (email != null && email.isNotEmpty ? 'Contact: $email' : 'EME Verified Member'),
+      description:
+          properties['description']?.toString() ??
+          (email != null && email.isNotEmpty
+              ? 'Contact: $email'
+              : 'EME Verified Member'),
       category: ProfileCategory.softwareTools,
       tags: email != null && email.isNotEmpty ? [email] : const ['EME Member'],
       iconData: Icons.person_rounded,
@@ -146,14 +151,31 @@ class EmeProfileModel {
 
   factory EmeProfileModel.fromUserJson(Map<String, dynamic> json) {
     final rawId = (json['id'] ?? json['userid'] ?? '').toString();
-    final rawFirst = (json['firstname'] ?? json['firstName'] ?? json['first_name'])?.toString() ?? '';
-    final rawLast = (json['lastname'] ?? json['lastName'] ?? json['last_name'])?.toString() ?? '';
-    final rawScreen = (json['screenname'] ?? json['screenName'] ?? json['screen_name'])?.toString();
+    final rawFirst =
+        (json['firstname'] ?? json['firstName'] ?? json['first_name'])
+            ?.toString() ??
+        '';
+    final rawLast =
+        (json['lastname'] ?? json['lastName'] ?? json['last_name'])
+            ?.toString() ??
+        '';
+    final rawScreen =
+        (json['screenname'] ?? json['screenName'] ?? json['screen_name'])
+            ?.toString();
     final rawEmail = json['email']?.toString();
-    final rawPortrait = (json['assetportrait'] ?? json['assetPortrait'] ?? json['avatarUrl'])?.toString();
-    final rawTitle = (json['specialistTitle'] ?? json['jobtitle'] ?? json['role'] ?? json['title'])?.toString();
-    final rawDesc = (json['description'] ?? json['bio'] ?? rawEmail ?? '').toString();
-    final rawLocation = (json['location'] ?? json['city'] ?? json['country'])?.toString();
+    final rawPortrait =
+        (json['assetportrait'] ?? json['assetPortrait'] ?? json['avatarUrl'])
+            ?.toString();
+    final rawTitle =
+        (json['specialistTitle'] ??
+                json['jobtitle'] ??
+                json['role'] ??
+                json['title'])
+            ?.toString();
+    final rawDesc = (json['description'] ?? json['bio'] ?? rawEmail ?? '')
+        .toString();
+    final rawLocation = (json['location'] ?? json['city'] ?? json['country'])
+        ?.toString();
 
     String name = '$rawFirst $rawLast'.trim();
     if (name.isEmpty) {
@@ -166,16 +188,23 @@ class EmeProfileModel {
         : ProfileCategory.softwareTools;
 
     return EmeProfileModel(
-      id: rawId,
+      username: rawId,
       name: name,
-      specialistTitle: rawTitle ?? (rawEmail != null && rawEmail.isNotEmpty ? rawEmail : null),
+      specialistTitle:
+          rawTitle ??
+          (rawEmail != null && rawEmail.isNotEmpty ? rawEmail : null),
       subtitle: rawEmail,
       description: rawDesc.isNotEmpty
           ? rawDesc
-          : (rawEmail != null && rawEmail.isNotEmpty ? 'Contact: $rawEmail' : 'EME Verified Member'),
+          : (rawEmail != null && rawEmail.isNotEmpty
+                ? 'Contact: $rawEmail'
+                : 'EME Verified Member'),
       category: category,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
-          (rawEmail != null && rawEmail.isNotEmpty ? [rawEmail] : ['EME Member']),
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          (rawEmail != null && rawEmail.isNotEmpty
+              ? [rawEmail]
+              : ['EME Member']),
       iconData: Icons.person_rounded,
       avatarUrl: rawPortrait,
       primaryColor: const Color(0xFF0284C7),
@@ -186,7 +215,8 @@ class EmeProfileModel {
       servicePricing: json['servicePricing']?.toString(),
       location: rawLocation,
       isVerified: true,
-      servicesOffered: (json['servicesOffered'] as List<dynamic>?)
+      servicesOffered:
+          (json['servicesOffered'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -194,27 +224,36 @@ class EmeProfileModel {
   }
 
   factory EmeProfileModel.fromJson(Map<String, dynamic> json) {
-    final rawFirst = (json['firstname'] ?? json['firstName'] ?? json['first_name'])?.toString() ?? '';
-    final rawLast = (json['lastname'] ?? json['lastName'] ?? json['last_name'])?.toString() ?? '';
+    final rawFirst =
+        (json['firstname'] ?? json['firstName'] ?? json['first_name'])
+            ?.toString() ??
+        '';
+    final rawLast =
+        (json['lastname'] ?? json['lastName'] ?? json['last_name'])
+            ?.toString() ??
+        '';
     final fallbackName = '$rawFirst $rawLast'.trim();
     final name = (json['name'] as String?)?.isNotEmpty == true
         ? (json['name'] as String)
         : (fallbackName.isNotEmpty
-            ? fallbackName
-            : (json['screenname'] ?? json['email'] ?? json['id'] ?? '').toString());
+              ? fallbackName
+              : (json['screenname'] ?? json['email'] ?? json['id'] ?? '')
+                    .toString());
 
-    final avatar = (json['avatarUrl'] ?? json['assetportrait'] ?? json['assetPortrait']) as String?;
+    final avatar =
+        (json['avatarUrl'] ?? json['assetportrait'] ?? json['assetPortrait'])
+            as String?;
 
     return EmeProfileModel(
-      id: (json['id'] ?? json['userid'] ?? '').toString(),
+      username: (json['id'] ?? json['userid'] ?? '').toString(),
       name: name,
-      specialistTitle: json['specialistTitle'] as String? ?? json['email'] as String?,
+      specialistTitle:
+          json['specialistTitle'] as String? ?? json['email'] as String?,
       subtitle: json['subtitle'] as String?,
       description: json['description'] as String? ?? '',
       category: ProfileCategory.fromString(json['category'] as String? ?? ''),
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
       iconData: json['iconCodePoint'] != null
           // ignore: non_const_argument_for_const_parameter
@@ -233,7 +272,8 @@ class EmeProfileModel {
       servicePricing: json['servicePricing'] as String?,
       location: json['location'] as String?,
       isVerified: json['isVerified'] as bool? ?? true,
-      servicesOffered: (json['servicesOffered'] as List<dynamic>?)
+      servicesOffered:
+          (json['servicesOffered'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -242,7 +282,7 @@ class EmeProfileModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'id': username,
       'name': name,
       if (specialistTitle != null) 'specialistTitle': specialistTitle,
       if (subtitle != null) 'subtitle': subtitle,

@@ -1,49 +1,43 @@
 import 'dart:convert';
 
 class EmUser {
-  final String userid;
+  final String username;
   final String? email;
   final String? firstname;
   final String? lastname;
   final String? screenname;
   final String? assetportrait;
   final String? dataconsent;
-  final String entermediakey;
   final Map<String, dynamic> properties;
 
-  String get id => userid;
-
   EmUser({
-    required this.userid,
+    required this.username,
     this.email,
     this.firstname,
     this.lastname,
     this.screenname,
     this.assetportrait,
     this.dataconsent,
-    this.entermediakey = '',
     this.properties = const {},
   });
 
   factory EmUser.fromJson(Map<String, dynamic> json) {
-    final rawId = (json['id'] ?? json['userid'] ?? '').toString();
+    final rawId = json['id'] ?? json['username'];
     final rawEmail = json['email']?.toString();
-    final rawFirst = (json['firstname'] ?? json['firstName'] ?? json['first_name'])?.toString();
-    final rawLast = (json['lastname'] ?? json['lastName'] ?? json['last_name'])?.toString();
-    final rawScreen = (json['screenname'] ?? json['screenName'] ?? json['screen_name'])?.toString();
-    final rawPortrait = (json['assetportrait'] ?? json['assetPortrait'])?.toString();
-    final rawConsent = (json['dataconsent'] ?? json['dataConsent'])?.toString();
-    final rawKey = (json['entermediakey'] ?? json['token'] ?? '').toString();
+    final rawFirst = (json['firstname'])?.toString();
+    final rawLast = (json['lastname'])?.toString();
+    final rawScreen = (json['screenname'])?.toString();
+    final rawPortrait = (json['assetportrait'])?.toString();
+    final rawConsent = (json['dataconsent'])?.toString();
 
     return EmUser(
-      userid: rawId,
+      username: rawId,
       email: rawEmail,
       firstname: rawFirst,
       lastname: rawLast,
       screenname: rawScreen,
       assetportrait: rawPortrait,
       dataconsent: rawConsent,
-      entermediakey: rawKey,
       properties: Map<String, dynamic>.from(json),
     );
   }
@@ -53,7 +47,7 @@ class EmUser {
     final last = lastname ?? '';
     final combined = '$first $last'.trim();
     if (combined.isNotEmpty) return combined;
-    return screenname ?? email ?? userid;
+    return screenname ?? email ?? username;
   }
 
   String get displayName {
@@ -75,15 +69,13 @@ class EmUser {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': userid,
-      'userid': userid,
+      'username': username,
       if (email != null) 'email': email,
       if (firstname != null) 'firstname': firstname,
       if (lastname != null) 'lastname': lastname,
       if (screenname != null) 'screenname': screenname,
       if (assetportrait != null) 'assetportrait': assetportrait,
       if (dataconsent != null) 'dataconsent': dataconsent,
-      'entermediakey': entermediakey,
       ...properties,
     };
   }
@@ -93,25 +85,23 @@ class EmUser {
   }
 
   EmUser copyWith({
-    String? userid,
+    String? username,
     String? email,
     String? firstname,
     String? lastname,
     String? screenname,
     String? assetportrait,
     String? dataconsent,
-    String? entermediakey,
     Map<String, dynamic>? properties,
   }) {
     return EmUser(
-      userid: userid ?? this.userid,
+      username: username ?? this.username,
       email: email ?? this.email,
       firstname: firstname ?? this.firstname,
       lastname: lastname ?? this.lastname,
       screenname: screenname ?? this.screenname,
       assetportrait: assetportrait ?? this.assetportrait,
       dataconsent: dataconsent ?? this.dataconsent,
-      entermediakey: entermediakey ?? this.entermediakey,
       properties: properties ?? this.properties,
     );
   }

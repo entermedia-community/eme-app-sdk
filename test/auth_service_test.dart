@@ -19,7 +19,9 @@ void main() {
       expect(okRes.status, SendUserCodeStatus.ok);
 
       // 2. No user case
-      final noUserRes = await authService.sendUserCode(email: 'newuser@emeworld.org');
+      final noUserRes = await authService.sendUserCode(
+        email: 'newuser@emeworld.org',
+      );
       expect(noUserRes.isNoUser, true);
       expect(noUserRes.allowGuestRegistration, true);
 
@@ -87,10 +89,7 @@ void main() {
 
     test('SendUserCodeResult and LoginResult JSON parsing', () {
       final okJson = {
-        'response': {
-          'status': 'ok',
-          'email': 'user@example.com',
-        }
+        'response': {'status': 'ok', 'email': 'user@example.com'},
       };
       final okResult = SendUserCodeResult.fromJson(okJson);
       expect(okResult.isSuccess, true);
@@ -101,17 +100,14 @@ void main() {
           'status': 'nouser',
           'email': 'user@example.com',
           'allowguestregistration': true,
-        }
+        },
       };
       final noUserResult = SendUserCodeResult.fromJson(noUserJson);
       expect(noUserResult.isNoUser, true);
       expect(noUserResult.allowGuestRegistration, true);
 
       final loginJson = {
-        'response': {
-          'status': 'ok',
-          'user': 'usr_99',
-        },
+        'response': {'status': 'ok', 'user': 'usr_99'},
         'entermediakey': 'token_xyz123',
         'user': {
           'id': 'usr_99',
@@ -119,7 +115,7 @@ void main() {
           'lastname': 'Smith',
           'email': 'jane@example.com',
           'screenname': 'janesmith',
-        }
+        },
       };
       final loginResult = LoginResult.fromJson(loginJson);
       expect(loginResult.isSuccess, true);
@@ -138,15 +134,18 @@ void main() {
       expect(oauthResult.user?.email, 'tokenuser@example.com');
     });
 
-    test('searchUsers queries users endpoint and parses user results', () async {
-      final authService = AuthService();
-      final results = await authService.searchUsers('admin');
-      expect(results.isNotEmpty, true);
-      expect(results.first.id, 'admin');
-      expect(results.first.firstname, 'The');
-      expect(results.first.lastname, 'Administrator');
-      expect(results.first.email, 'support@entermediadb.org');
-      expect(results.first.assetportrait, contains('jefferson-santos'));
-    });
+    test(
+      'searchUsers queries users endpoint and parses user results',
+      () async {
+        final authService = AuthService();
+        final results = await authService.searchUsers('admin');
+        expect(results.isNotEmpty, true);
+        expect(results.first.username, 'admin');
+        expect(results.first.firstname, 'The');
+        expect(results.first.lastname, 'Administrator');
+        expect(results.first.email, 'support@entermediadb.org');
+        expect(results.first.assetportrait, contains('jefferson-santos'));
+      },
+    );
   });
 }

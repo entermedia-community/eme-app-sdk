@@ -13,13 +13,11 @@ class AppSettings {
   String mediadb;
   String siteroot;
   String catalogId;
-  bool https;
 
   AppSettings({
     required this.mediadb,
     required this.siteroot,
     required this.catalogId,
-    required this.https,
   });
 
   factory AppSettings.fromJSON(Map<String, dynamic> json) {
@@ -27,17 +25,22 @@ class AppSettings {
       mediadb: json['mediadb'] ?? '',
       siteroot: json['siteroot'] ?? '',
       catalogId: json['catalogid'] ?? '',
-      https: json['https'] ?? false,
     );
   }
 }
 
 class OpenI {
+  static OpenI? get instance =>
+      Get.isRegistered<OpenI>() ? Get.find<OpenI>() : null;
+
   late AppSettings _settings;
   OiChatManager? chatManager;
 
-  Future<void> initialize({required Map<String, dynamic> workspaceData}) async {
+  Future<void> initialize(Map<String, dynamic> workspaceData) async {
     _settings = AppSettings.fromJSON(workspaceData);
+    debugPrint('======================');
+    debugPrint('Settings: ${_settings.mediadb}');
+    debugPrint('======================');
     Get.put<OpenI>(this, permanent: true);
     chatManager = OiChatManager();
     Get.put<OiChatManager>(chatManager!, permanent: true);

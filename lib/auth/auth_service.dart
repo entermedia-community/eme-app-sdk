@@ -35,6 +35,8 @@ class AuthService implements IAuthService {
 
   static String? currentUserId;
   static String? get userId => currentUserId;
+  static String? currentToken;
+  static String? get token => currentToken;
 
   AuthService({this.openI, Dio? dio, String? baseUrl})
     : _dio = dio ?? DioUtil.dio,
@@ -112,41 +114,17 @@ class AuthService implements IAuthService {
       if (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty) {
         return SendUserCodeResult.fromJson(jsonMap);
       }
-
-      // Mock fallback simulation for dev/testing when offline or mock server
-      return _mockSendUserCode(cleanEmail, firstName, lastName);
+      throw Exception('AuthService.sendUserCode failed');
     } catch (e, stack) {
       debugPrint('[AuthService] sendUserCode error: $e');
       AppErrorHandler.recordNonFatal(
         e,
         stack,
-        reason: 'AuthService.sendUserCode failed, trying fallback',
+        reason: 'AuthService.sendUserCode failed',
         customKeys: {'email': cleanEmail},
       );
-
-      return _mockSendUserCode(cleanEmail, firstName, lastName);
+      throw Exception('AuthService.sendUserCode failed');
     }
-  }
-
-  SendUserCodeResult _mockSendUserCode(
-    String email,
-    String? firstName,
-    String? lastName,
-  ) {
-    if (email.contains('new') && (firstName == null || firstName.isEmpty)) {
-      return SendUserCodeResult(
-        status: SendUserCodeStatus.nouser,
-        email: email,
-        allowGuestRegistration: true,
-      );
-    }
-    if (email.contains('invalid') || email.contains('error')) {
-      return const SendUserCodeResult(
-        status: SendUserCodeStatus.error,
-        errorMessage: 'Invalid email address or service unavailable',
-      );
-    }
-    return SendUserCodeResult(status: SendUserCodeStatus.ok, email: email);
   }
 
   @override
@@ -193,17 +171,14 @@ class AuthService implements IAuthService {
         jsonMap = jsonDecode(data);
       }
 
-      final statusCode = response.statusCode ?? 0;
-      final result =
-          (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty)
-              ? LoginResult.fromJson(jsonMap)
-              : _mockLoginResult(cleanEmail, cleanCode);
+      final result = LoginResult.fromJson(jsonMap);
 
       if (result.isSuccess && result.token != null) {
         await SharedPref.saveEMKey(result.token!);
+        currentToken = result.token;
         if (result.user != null) {
           await SharedPref.saveEmUser(result.user!);
-          currentUserId = result.user!.id;
+          currentUserId = result.user!.username;
         }
       }
 
@@ -216,51 +191,8 @@ class AuthService implements IAuthService {
         reason: 'AuthService.loginWithCode failed, trying fallback',
         customKeys: {'email': cleanEmail},
       );
-
-      final fallback = _mockLoginResult(cleanEmail, cleanCode);
-      if (fallback.isSuccess && fallback.token != null) {
-        await SharedPref.saveEMKey(fallback.token!);
-        if (fallback.user != null) {
-          await SharedPref.saveEmUser(fallback.user!);
-          currentUserId = fallback.user!.id;
-        }
-      }
-      return fallback;
+      throw Exception('AuthService.loginWithCode failed');
     }
-  }
-
-  LoginResult _mockLoginResult(String email, String code) {
-    if (code == '000000' || code.length < 6) {
-      return const LoginResult(
-        isSuccess: false,
-        errorMessage: 'Invalid or expired verification code',
-      );
-    }
-
-    final token = 'eme_token_${DateTime.now().millisecondsSinceEpoch}';
-    final nameParts = email.split('@').first.split('.');
-    final first = nameParts.first;
-    final last = nameParts.length > 1 ? nameParts.last : '';
-
-    final user = EmUser(
-      userid: 'usr_${email.hashCode.abs()}',
-      email: email,
-      firstname: first.isNotEmpty
-          ? '${first[0].toUpperCase()}${first.substring(1)}'
-          : 'EME',
-      lastname: last.isNotEmpty
-          ? '${last[0].toUpperCase()}${last.substring(1)}'
-          : 'Member',
-      screenname: email.split('@').first,
-      entermediakey: token,
-      properties: {
-        'id': 'usr_${email.hashCode.abs()}',
-        'email': email,
-        'entermediakey': token,
-      },
-    );
-
-    return LoginResult(isSuccess: true, user: user, token: token);
   }
 
   @override
@@ -273,7 +205,7 @@ class AuthService implements IAuthService {
 
     final cachedUser = await getCurrentUser();
     if (cachedUser != null) {
-      currentUserId = cachedUser.id;
+      currentUserId = cachedUser.username;
     }
 
     final url = _cleanUrl('/services/authentication/user.json');
@@ -318,9 +250,9 @@ class AuthService implements IAuthService {
                   : jsonMap);
 
         if (userJson.isNotEmpty && userJson['id'] != null) {
-          final user = EmUser.fromJson(userJson).copyWith(entermediakey: token);
+          final user = EmUser.fromJson(userJson);
           await SharedPref.saveEmUser(user);
-          currentUserId = user.id;
+          currentUserId = user.username;
           return user;
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
@@ -347,7 +279,7 @@ class AuthService implements IAuthService {
   Future<EmUser?> getCurrentUser() async {
     final user = await SharedPref.getEmUser();
     if (user != null) {
-      currentUserId = user.id;
+      currentUserId = user.username;
     }
     return user;
   }
@@ -369,7 +301,7 @@ class AuthService implements IAuthService {
     if (cleanQuery.isEmpty) return [];
 
     final token = await getAuthToken();
-    final url = _cleanUrl('/services/module/user/users.json');
+    final url = _cleanUrl('/services/module/user/usersearch.json');
 
     debugPrint('[AuthService] searchUsers GET URL: $url?term=$cleanQuery');
 
@@ -410,7 +342,7 @@ class AuthService implements IAuthService {
             .toList();
       }
 
-      return _mockSearchUsers(cleanQuery);
+      return [];
     } catch (e, stack) {
       debugPrint('[AuthService] searchUsers error: $e');
       AppErrorHandler.recordNonFatal(
@@ -419,28 +351,8 @@ class AuthService implements IAuthService {
         reason: 'AuthService.searchUsers failed',
         customKeys: {'query': cleanQuery},
       );
-      return _mockSearchUsers(cleanQuery);
+      return [];
     }
-  }
-
-  List<EmUser> _mockSearchUsers(String query) {
-    final q = query.toLowerCase();
-    if (q.contains('admin') ||
-        q.contains('the') ||
-        q.contains('supp') ||
-        q.contains('eme')) {
-      return [
-        EmUser(
-          userid: 'admin',
-          email: 'support@entermediadb.org',
-          firstname: 'The',
-          lastname: 'Administrator',
-          assetportrait:
-              'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
-        ),
-      ];
-    }
-    return [];
   }
 
   @override
@@ -448,5 +360,6 @@ class AuthService implements IAuthService {
     await SharedPref.resetValues();
     await DioUtil.clearCookies();
     currentUserId = null;
+    currentToken = null;
   }
 }
