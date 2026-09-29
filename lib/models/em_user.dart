@@ -29,8 +29,9 @@ class EmUser {
     final rawPortrait = (json['assetportrait'])?.toString();
     final rawConsent = (json['dataconsent'])?.toString();
 
+    final rawUsername = (json['username'] ?? json['id']).toString();
     return EmUser(
-      username: json['username'],
+      username: rawUsername,
       email: rawEmail,
       firstname: rawFirst,
       lastname: rawLast,

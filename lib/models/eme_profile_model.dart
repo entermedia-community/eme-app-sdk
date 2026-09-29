@@ -150,6 +150,7 @@ class EmeProfileModel {
   }
 
   factory EmeProfileModel.fromUserJson(Map<String, dynamic> json) {
+    final rawUsername = (json['username'] ?? json['id']).toString();
     final rawFirst = json['firstname'] ?? '';
     final rawLast = json['lastname'] ?? '';
     final rawScreen = json['screenname'];
@@ -168,7 +169,10 @@ class EmeProfileModel {
 
     String name = '$rawFirst $rawLast'.trim();
     if (name.isEmpty) {
-      name = rawScreen ?? rawEmail ?? json['username'];
+      name =
+          rawScreen ??
+          rawEmail ??
+          (rawUsername.isNotEmpty ? rawUsername : 'User');
     }
 
     final categoryStr = json['category']?.toString() ?? '';
@@ -177,7 +181,7 @@ class EmeProfileModel {
         : ProfileCategory.softwareTools;
 
     return EmeProfileModel(
-      username: json['username'],
+      username: rawUsername,
       name: name,
       specialistTitle:
           rawTitle ??
