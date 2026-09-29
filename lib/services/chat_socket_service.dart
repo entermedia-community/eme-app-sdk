@@ -57,15 +57,8 @@ class ChatSocketService {
     final effectiveToken = token ?? _resolveToken();
     final effectiveBase = baseUrl ?? _resolveHttpBaseUrl();
 
-    var cleanBase = effectiveBase.trim();
-    if (cleanBase.endsWith('/')) {
-      cleanBase = cleanBase.substring(0, cleanBase.length - 1);
-    }
-    if (toUser.contains(" ")) {
-      throw Exception('Username cannot contain spaces');
-    }
     // Determine target URL path
-    final primaryUrl = '$cleanBase/services/module/user/connect.json';
+    final primaryUrl = '$effectiveBase/services/module/user/connect.json';
 
     final body = <String, dynamic>{'fromuser': fromUser, 'touser': toUser};
 
@@ -143,8 +136,10 @@ class ChatSocketService {
     _entermediakey = _resolveToken(token);
     _catalogId = _resolveCatalogId(catalogId);
 
-    if (_userId.isEmpty) {
-      debugPrint('ChatSocketService: cannot connect without a valid userId');
+    if (_baseUrl == null || _baseUrl!.isEmpty || _userId.isEmpty) {
+      debugPrint(
+        'ChatSocketService: cannot connect without a valid baseUrl and userId',
+      );
       return;
     }
 
@@ -407,7 +402,7 @@ class ChatSocketService {
     if (oi != null && oi.settings.catalogId.isNotEmpty) {
       return oi.settings.catalogId;
     }
-    throw Exception('Catalog ID is not set');
+    return '';
   }
 
   String _resolveHttpBaseUrl([String? explicitBaseUrl]) {
@@ -418,7 +413,7 @@ class ChatSocketService {
     if (oi != null && oi.settings.mediadb.isNotEmpty) {
       return oi.settings.mediadb;
     }
-    throw Exception('HTTP Base URL is not set');
+    return '';
   }
 
   String _resolveWsBaseUrl([String? explicitBaseUrl]) {
@@ -431,7 +426,7 @@ class ChatSocketService {
       return '${url.scheme == 'https' ? 'wss' : 'ws'}://${url.host}${url.port != 80 && url.port != 443 ? ':${url.port}' : ''}'
           '/entermedia/services/websocket/org/entermediadb/websocket/chat/ChatConnection';
     }
-    throw Exception('WebSocket Base URL is not set');
+    return '';
   }
 
   String? _resolveToken([String? explicitToken]) {

@@ -38,19 +38,19 @@ class AuthService implements IAuthService {
   static String? currentToken;
   static String? get token => currentToken;
 
-  AuthService({this.openI, Dio? dio, String? baseUrl})
-    : _dio = dio ?? DioUtil.dio,
+  AuthService({OpenI? openI, Dio? dio, String? baseUrl})
+    : openI = openI ?? OpenI.instance,
+      _dio = dio ?? DioUtil.dio,
       baseUrl =
           baseUrl ??
-          (openI?.settings.mediadb.isNotEmpty == true
-              ? openI!.settings.mediadb
-              : 'http://localhost.com:8080/site/mediadb');
+          (openI ?? OpenI.instance)?.settings.mediadb ??
+          '';
 
   String _cleanUrl(String path) {
-    var base = baseUrl.trim();
-    if (openI != null && openI!.settings.mediadb.isNotEmpty) {
-      base = openI!.settings.mediadb.trim();
-    }
+    final effectiveOpenI = openI ?? OpenI.instance;
+    var base = (effectiveOpenI != null && effectiveOpenI.settings.mediadb.isNotEmpty)
+        ? effectiveOpenI.settings.mediadb.trim()
+        : baseUrl.trim();
     if (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }

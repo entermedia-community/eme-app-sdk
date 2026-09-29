@@ -22,7 +22,6 @@ class EmUser {
   });
 
   factory EmUser.fromJson(Map<String, dynamic> json) {
-    final rawId = json['id'] ?? json['username'];
     final rawEmail = json['email']?.toString();
     final rawFirst = (json['firstname'])?.toString();
     final rawLast = (json['lastname'])?.toString();
@@ -31,7 +30,7 @@ class EmUser {
     final rawConsent = (json['dataconsent'])?.toString();
 
     return EmUser(
-      username: rawId,
+      username: json['username'],
       email: rawEmail,
       firstname: rawFirst,
       lastname: rawLast,

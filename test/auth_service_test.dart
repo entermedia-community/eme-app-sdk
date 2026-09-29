@@ -110,7 +110,7 @@ void main() {
         'response': {'status': 'ok', 'user': 'usr_99'},
         'entermediakey': 'token_xyz123',
         'user': {
-          'id': 'usr_99',
+          'username': 'usr_99',
           'firstname': 'Jane',
           'lastname': 'Smith',
           'email': 'jane@example.com',
