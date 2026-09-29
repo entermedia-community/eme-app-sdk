@@ -74,15 +74,15 @@ void main() {
 
       const chatThread = ChatModel(
         channelId: 'chat_1',
-        userName: 'Alice',
+        username: 'Alice',
         displayName: 'Developer',
         lastMessage: 'Ready for review',
         time: '10:00 AM',
         avatarColor: Color(0xFF2563EB),
       );
-      expect(chatThread.userName, 'Alice');
+      expect(chatThread.username, 'Alice');
       final chatJson = chatThread.toJson();
-      expect(ChatModel.fromJson(chatJson).userName, 'Alice');
+      expect(ChatModel.fromJson(chatJson).username, 'Alice');
     });
 
     test(

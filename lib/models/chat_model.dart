@@ -7,7 +7,7 @@ import 'product_message_model.dart';
 /// Conversation / Thread Model representing chat items in list views
 class ChatModel {
   final String? channelId;
-  final String userName;
+  final String username;
   final String displayName;
   final String lastMessage;
   final String time;
@@ -19,7 +19,7 @@ class ChatModel {
 
   const ChatModel({
     this.channelId,
-    required this.userName,
+    required this.username,
     required this.displayName,
     required this.lastMessage,
     required this.time,
@@ -32,7 +32,7 @@ class ChatModel {
 
   ChatModel copyWith({
     String? channelId,
-    String? userName,
+    String? username,
     String? displayName,
     String? lastMessage,
     String? time,
@@ -44,7 +44,7 @@ class ChatModel {
   }) {
     return ChatModel(
       channelId: channelId ?? this.channelId,
-      userName: userName ?? this.userName,
+      username: username ?? this.username,
       displayName: displayName ?? this.displayName,
       lastMessage: lastMessage ?? this.lastMessage,
       time: time ?? this.time,
@@ -97,8 +97,8 @@ class ChatModel {
         : _generateColor(displayName);
 
     return ChatModel(
-      channelId: (json['channel'] ?? '').toString(),
-      userName: json['username'],
+      channelId: json['channel'],
+      username: json['username'],
       displayName: displayName,
       lastMessage: lastMsgText,
       time: timeText,
@@ -189,7 +189,7 @@ class ChatModel {
   Map<String, dynamic> toJson() {
     return {
       'channel': channelId,
-      'username': userName,
+      'username': username,
       'displayName': displayName,
       'lastMessage': lastMessage,
       'time': time,

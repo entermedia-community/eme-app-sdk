@@ -61,7 +61,9 @@ class ChatSocketService {
     if (cleanBase.endsWith('/')) {
       cleanBase = cleanBase.substring(0, cleanBase.length - 1);
     }
-
+    if (toUser.contains(" ")) {
+      throw Exception('Username cannot contain spaces');
+    }
     // Determine target URL path
     final primaryUrl = '$cleanBase/services/module/user/connect.json';
 

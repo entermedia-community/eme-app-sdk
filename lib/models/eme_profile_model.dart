@@ -117,7 +117,7 @@ class EmeProfileModel {
 
   factory EmeProfileModel.fromEmUser(dynamic emUser) {
     final properties = (emUser.properties as Map<String, dynamic>?) ?? {};
-    final username = (emUser.id ?? '').toString();
+    final username = (emUser.username ?? '').toString();
     final name = (emUser.fullName ?? '').toString().isNotEmpty
         ? emUser.fullName.toString()
         : username;
@@ -150,22 +150,12 @@ class EmeProfileModel {
   }
 
   factory EmeProfileModel.fromUserJson(Map<String, dynamic> json) {
-    final rawId = (json['id'] ?? json['userid'] ?? '').toString();
-    final rawFirst =
-        (json['firstname'] ?? json['firstName'] ?? json['first_name'])
-            ?.toString() ??
-        '';
-    final rawLast =
-        (json['lastname'] ?? json['lastName'] ?? json['last_name'])
-            ?.toString() ??
-        '';
-    final rawScreen =
-        (json['screenname'] ?? json['screenName'] ?? json['screen_name'])
-            ?.toString();
-    final rawEmail = json['email']?.toString();
-    final rawPortrait =
-        (json['assetportrait'] ?? json['assetPortrait'] ?? json['avatarUrl'])
-            ?.toString();
+    final rawId = json['username'];
+    final rawFirst = json['firstname'] ?? '';
+    final rawLast = json['lastname'] ?? '';
+    final rawScreen = json['screenname'];
+    final rawEmail = json['email'];
+    final rawPortrait = json['assetportrait'];
     final rawTitle =
         (json['specialistTitle'] ??
                 json['jobtitle'] ??
