@@ -109,7 +109,7 @@ class PushNotificationService {
 
   factory PushNotificationService() => instance;
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
   final StreamController<PushNotificationMessage> _onMessageController =
