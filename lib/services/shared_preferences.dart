@@ -81,6 +81,21 @@ class SharedPref {
   //todo; bool CheckValue = prefs.containsKey('value');
   //todo; containsKey will return true if persistent storage contains the given key and false if not.
 
+  static Future<void> saveString(String key, String value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
+
+  static Future<String?> getString(String key) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  static Future<void> remove(String key) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(key);
+  }
+
   static Future<void> resetValues() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     //Remove entermediakey

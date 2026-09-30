@@ -11,6 +11,7 @@ export 'models/models.dart';
 export 'services/api_service.dart';
 export 'services/chat_socket_service.dart';
 export 'services/oi_chat_manager.dart';
+export 'services/push_notification_service.dart';
 export 'services/shared_preferences.dart';
 
 // Providers
