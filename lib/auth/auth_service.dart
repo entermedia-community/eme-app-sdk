@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+export 'package:dio/dio.dart' show MultipartFile, FormData;
 import '../models/em_user.dart';
 import '../openinsitute_core.dart';
 import '../services/shared_preferences.dart';
@@ -26,6 +27,10 @@ abstract class IAuthService {
   Future<String?> getAuthToken();
   Future<void> logout();
   Future<bool> isAuthenticated();
+  Future<void> saveUserFields(
+    List<MapEntry<String, String>> fields, {
+    MultipartFile? portrait,
+  });
 }
 
 class AuthService implements IAuthService {
@@ -41,14 +46,12 @@ class AuthService implements IAuthService {
   AuthService({OpenI? openI, Dio? dio, String? baseUrl})
     : openI = openI ?? OpenI.instance,
       _dio = dio ?? DioUtil.dio,
-      baseUrl =
-          baseUrl ??
-          (openI ?? OpenI.instance)?.settings.mediadb ??
-          '';
+      baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
 
   String _cleanUrl(String path) {
     final effectiveOpenI = openI ?? OpenI.instance;
-    var base = (effectiveOpenI != null && effectiveOpenI.settings.mediadb.isNotEmpty)
+    var base =
+        (effectiveOpenI != null && effectiveOpenI.settings.mediadb.isNotEmpty)
         ? effectiveOpenI.settings.mediadb.trim()
         : baseUrl.trim();
     if (base.endsWith('/')) {
@@ -352,6 +355,60 @@ class AuthService implements IAuthService {
         customKeys: {'query': cleanQuery},
       );
       return [];
+    }
+  }
+
+  @override
+  Future<void> saveUserFields(
+    List<MapEntry<String, String>> fields, {
+    MultipartFile? portrait,
+  }) async {
+    final token = await getAuthToken();
+    final url = _cleanUrl('/services/authentication/usersave.json');
+    final uid = currentUserId ?? (await getCurrentUser())?.username ?? '';
+
+    final formData = FormData();
+    formData.fields.add(const MapEntry('save', 'true'));
+    formData.fields.add(MapEntry('userid', uid));
+    formData.fields.add(MapEntry('username', uid));
+    for (final entry in fields) {
+      formData.fields.add(entry);
+    }
+    if (portrait != null) {
+      formData.fields.add(const MapEntry('field', 'assetportrait'));
+      formData.files.add(MapEntry('file.assetportrait', portrait));
+    }
+
+    debugPrint('[AuthService] saveUserFields POST URL: $url');
+
+    try {
+      final response = await _dio.post(
+        url,
+        data: formData,
+        options: Options(
+          headers: {
+            'X-tokentype': 'entermedia',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+            if (token != null && token.isNotEmpty) 'entermediakey': token,
+          },
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      debugPrint(
+        '[AuthService] saveUserFields Response [${response.statusCode}]: ${response.data}',
+      );
+    } catch (e, stack) {
+      debugPrint('[AuthService] saveUserFields error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'AuthService.saveUserFields failed',
+        customKeys: {'userid': uid},
+      );
+      rethrow;
     }
   }
 
