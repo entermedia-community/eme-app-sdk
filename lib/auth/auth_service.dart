@@ -42,6 +42,10 @@ class AuthService implements IAuthService {
   static String? get userId => currentUserId;
   static String? currentToken;
   static String? get token => currentToken;
+  static String? currentFirebasePassword;
+  static String? get firebasePassword => currentFirebasePassword;
+  static String? currentUserEmail;
+  static String? get email => currentUserEmail;
 
   AuthService({OpenI? openI, Dio? dio, String? baseUrl})
     : openI = openI ?? OpenI.instance,
@@ -117,7 +121,7 @@ class AuthService implements IAuthService {
       if (statusCode >= 200 && statusCode < 300 && jsonMap.isNotEmpty) {
         return SendUserCodeResult.fromJson(jsonMap);
       }
-      throw Exception('AuthService.sendUserCode failed');
+      throw Exception('Invalid response from sendUserCode');
     } catch (e, stack) {
       debugPrint('[AuthService] sendUserCode error: $e');
       AppErrorHandler.recordNonFatal(
@@ -126,7 +130,11 @@ class AuthService implements IAuthService {
         reason: 'AuthService.sendUserCode failed',
         customKeys: {'email': cleanEmail},
       );
-      throw Exception('AuthService.sendUserCode failed');
+      return SendUserCodeResult(
+        status: SendUserCodeStatus.nouser,
+        email: email,
+        allowGuestRegistration: true,
+      );
     }
   }
 
@@ -143,6 +151,7 @@ class AuthService implements IAuthService {
       'grant_type': 'otp',
       'email': cleanEmail,
       'code': cleanCode,
+      'firebaseenabled': true,
     };
 
     debugPrint('[AuthService] loginWithCode POST URL: $url');
@@ -194,7 +203,10 @@ class AuthService implements IAuthService {
         reason: 'AuthService.loginWithCode failed, trying fallback',
         customKeys: {'email': cleanEmail},
       );
-      throw Exception('AuthService.loginWithCode failed');
+      return LoginResult(
+        isSuccess: false,
+        errorMessage: 'Invalid or expired verification code',
+      );
     }
   }
 

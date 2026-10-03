@@ -1,6 +1,118 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import 'package:eme_app_sdk/eme_app_sdk.dart';
+
+Dio createMockAuthDio() {
+  final dio = Dio();
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        final path = options.path;
+        final data = options.data is Map ? options.data as Map : {};
+        if (path.contains('sendusercode.json')) {
+          final email = data['email']?.toString() ?? '';
+          if (email.contains('new') && data['firstname'] == null) {
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'response': {
+                    'status': 'nouser',
+                    'email': email,
+                    'allowguestregistration': true,
+                  },
+                },
+              ),
+            );
+          }
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok', 'email': email},
+              },
+            ),
+          );
+        } else if (path.contains('token.json')) {
+          final code = data['code']?.toString() ?? '';
+          final email = data['email']?.toString() ?? '';
+          if (code.length < 6 || code == '123') {
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 400,
+                data: {
+                  'error': 'invalid_grant',
+                  'error_description': 'Invalid code',
+                },
+              ),
+            );
+          }
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
+                'entermediakey':
+                    'mock_token_${DateTime.now().millisecondsSinceEpoch}',
+                'user': {
+                  'username': 'usr_${email.split('@').first}',
+                  'email': email,
+                  'firstname': email.split('@').first,
+                  'lastname': 'User',
+                  'screenname': email.split('@').first,
+                },
+              },
+            ),
+          );
+        } else if (path.contains('firebaselogin.json')) {
+          final email = data['email']?.toString() ?? '';
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'results': {
+                  'username': 'usr_${email.split('@').first}',
+                  'email': email,
+                  'firstname': 'Firebase',
+                  'lastname': 'User',
+                  'firebasepassword': data['password'],
+                },
+              },
+            ),
+          );
+        } else if (path.contains('usersearch.json') ||
+            path.contains('users.json')) {
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'users': [
+                  {
+                    'username': 'admin',
+                    'firstname': 'The',
+                    'lastname': 'Administrator',
+                    'email': 'support@entermediadb.org',
+                    'assetportrait':
+                        'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
+                  },
+                ],
+              },
+            ),
+          );
+        }
+        return handler.next(options);
+      },
+    ),
+  );
+  return dio;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +123,7 @@ void main() {
 
   group('AuthService Tests', () {
     test('sendUserCode handles success, nouser, and error', () async {
-      final authService = AuthService();
+      final authService = AuthService(dio: createMockAuthDio());
 
       // 1. Success case
       final okRes = await authService.sendUserCode(email: 'test@emeworld.org');
@@ -35,7 +147,7 @@ void main() {
     });
 
     test('loginWithCode authenticates and saves session', () async {
-      final authService = AuthService();
+      final authService = AuthService(dio: createMockAuthDio());
 
       // 1. Invalid code
       final invalidRes = await authService.loginWithCode(
@@ -69,7 +181,7 @@ void main() {
     });
 
     test('checkAuthSession verifies cached session', () async {
-      final authService = AuthService();
+      final authService = AuthService(dio: createMockAuthDio());
 
       // Initially no session
       final initialSession = await authService.checkAuthSession();
@@ -137,7 +249,7 @@ void main() {
     test(
       'searchUsers queries users endpoint and parses user results',
       () async {
-        final authService = AuthService();
+        final authService = AuthService(dio: createMockAuthDio());
         final results = await authService.searchUsers('admin');
         expect(results.isNotEmpty, true);
         expect(results.first.username, 'admin');

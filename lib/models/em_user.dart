@@ -8,6 +8,7 @@ class EmUser {
   final String? screenname;
   final String? assetportrait;
   final String? dataconsent;
+  final String? firebasepassword;
   final Map<String, dynamic> properties;
 
   EmUser({
@@ -18,6 +19,7 @@ class EmUser {
     this.screenname,
     this.assetportrait,
     this.dataconsent,
+    this.firebasepassword,
     this.properties = const {},
   });
 
@@ -28,6 +30,7 @@ class EmUser {
     final rawScreen = (json['screenname'])?.toString();
     final rawPortrait = (json['assetportrait'])?.toString();
     final rawConsent = (json['dataconsent'])?.toString();
+    final rawFirebasePassword = (json['firebasepassword'])?.toString();
 
     final rawUsername = (json['username'] ?? json['id']).toString();
     return EmUser(
@@ -38,6 +41,7 @@ class EmUser {
       screenname: rawScreen,
       assetportrait: rawPortrait,
       dataconsent: rawConsent,
+      firebasepassword: rawFirebasePassword,
       properties: Map<String, dynamic>.from(json),
     );
   }
@@ -76,6 +80,7 @@ class EmUser {
       if (screenname != null) 'screenname': screenname,
       if (assetportrait != null) 'assetportrait': assetportrait,
       if (dataconsent != null) 'dataconsent': dataconsent,
+      if (firebasepassword != null) 'firebasepassword': firebasepassword,
       ...properties,
     };
   }
@@ -92,6 +97,7 @@ class EmUser {
     String? screenname,
     String? assetportrait,
     String? dataconsent,
+    String? firebasepassword,
     Map<String, dynamic>? properties,
   }) {
     return EmUser(
@@ -102,6 +108,7 @@ class EmUser {
       screenname: screenname ?? this.screenname,
       assetportrait: assetportrait ?? this.assetportrait,
       dataconsent: dataconsent ?? this.dataconsent,
+      firebasepassword: firebasepassword ?? this.firebasepassword,
       properties: properties ?? this.properties,
     );
   }

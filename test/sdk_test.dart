@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eme_app_sdk/eme_app_sdk.dart';
+import 'auth_service_test.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -88,7 +89,13 @@ void main() {
     test(
       'Riverpod providers initialize correctly and searchUsers works',
       () async {
-        final container = ProviderContainer();
+        final mockDio = createMockAuthDio();
+        final container = ProviderContainer(
+          overrides: [
+            authServiceProvider.overrideWithValue(AuthService(dio: mockDio)),
+            apiServiceProvider.overrideWithValue(ApiService(dio: mockDio)),
+          ],
+        );
         addTearDown(container.dispose);
 
         final serverState = container.read(serverProvider);
