@@ -56,6 +56,9 @@ class ApiService implements IApiService {
     if (base.isEmpty) {
       base = (OpenI.instance?.settings.mediadb ?? '').trim();
     }
+    if (base.isEmpty) {
+      base = 'http://localhost:8080/site/mediadb';
+    }
     if (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
@@ -139,7 +142,7 @@ class ApiService implements IApiService {
 
     debugPrint('[ApiService] fetchUsers GET URL: $primaryUrl');
     try {
-      final dio = DioUtil.dio;
+      final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
         'X-tokentype': 'entermedia',
@@ -280,7 +283,7 @@ class ApiService implements IApiService {
 
     debugPrint('[ApiService] fetchChats GET URL: $primaryUrl');
     try {
-      final dio = DioUtil.dio;
+      final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
         'X-tokentype': 'entermedia',
@@ -343,7 +346,7 @@ class ApiService implements IApiService {
       '[ApiService] fetchChatMessages GET URL: $primaryUrl?channel=$channelId',
     );
     try {
-      final dio = DioUtil.dio;
+      final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
         'X-tokentype': 'entermedia',

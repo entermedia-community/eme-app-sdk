@@ -86,6 +86,33 @@ Dio createMockAuthDio() {
               },
             ),
           );
+        } else if (path.contains('authentication/user.json')) {
+          final authHeader = options.headers['Authorization']?.toString() ?? '';
+          if (authHeader.isEmpty || authHeader.contains('null')) {
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 401,
+                data: {'error': 'unauthorized'},
+              ),
+            );
+          }
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
+                'user': {
+                  'username': 'usr_bob',
+                  'email': 'bob@emeworld.org',
+                  'firstname': 'bob',
+                  'lastname': 'User',
+                  'screenname': 'bob',
+                },
+              },
+            ),
+          );
         } else if (path.contains('usersearch.json') ||
             path.contains('users.json')) {
           return handler.resolve(
