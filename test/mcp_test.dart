@@ -121,12 +121,12 @@ void main() {
   });
 
   group('McpClientService Tests', () {
-    test('McpClientService executes tool and processes user messages', () async {
+    test('McpClientService fails transparently on unreachable endpoints and returns assistant help', () async {
       final client = McpClientService();
       final server = McpServerModel(
         id: 'srv_weather',
         name: 'Weather MCP',
-        url: 'https://weather-mcp.cloud/sse',
+        url: 'https://weather-mcp.invalid/sse',
         tools: const [
           McpToolDefinition(
             name: 'get_weather_forecast',
@@ -141,26 +141,25 @@ void main() {
         createdAt: DateTime.now(),
       );
 
-      // Test calling tool
+      // 1. Tool call against unreachable endpoint should fail transparently, not fake a simulation
       final toolResult = await client.callTool(
         server: server,
         toolName: 'get_weather_forecast',
         arguments: {'city': 'Tokyo'},
       );
 
-      expect(toolResult.isSuccess, true);
-      expect(toolResult.result, isNotNull);
-      expect(toolResult.result['location'], 'Tokyo');
+      expect(toolResult.isSuccess, false);
+      expect(toolResult.errorMessage, isNotNull);
 
-      // Test processing user text prompt
+      // 2. Natural language user prompt should return assistant message listing available tools
       final assistantMsg = await client.processUserMessage(
         server: server,
         userText: 'What is the weather in Paris?',
       );
 
-      expect(assistantMsg.role, McpMessageRole.toolResult);
-      expect(assistantMsg.toolName, 'get_weather_forecast');
-      expect(assistantMsg.content, contains('Paris'));
+      expect(assistantMsg.role, McpMessageRole.assistant);
+      expect(assistantMsg.content, contains('Connected to **Weather MCP**'));
+      expect(assistantMsg.content, contains('get_weather_forecast'));
     });
   });
 
