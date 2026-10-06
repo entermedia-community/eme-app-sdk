@@ -22,6 +22,7 @@ export 'providers/providers.dart';
 
 // Utils & Helpers
 export 'package:dio/dio.dart' show MultipartFile, FormData;
+export 'package:shared_preferences/shared_preferences.dart' show SharedPreferences;
 export 'utils/dio.dart';
 export 'utils/error_handler.dart';
 export 'helper/custom_exception.dart';

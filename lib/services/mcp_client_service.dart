@@ -12,12 +12,14 @@ class McpToolCallResult {
   final dynamic result;
   final String? errorMessage;
   final int latencyMs;
+  final String? sessionId;
 
   const McpToolCallResult({
     required this.isSuccess,
     this.result,
     this.errorMessage,
     required this.latencyMs,
+    this.sessionId,
   });
 }
 
@@ -30,6 +32,52 @@ class McpClientService {
   Dio get _dio => DioUtil.dio;
 
   int _rpcIdCounter = 1;
+
+  /// Extracts the MCP Session ID from either the response header or response body
+  String? _extractSessionId(Response response) {
+    // 1. Check HTTP response headers (standard Mcp-Session-Id header)
+    final headerVal = response.headers.value('mcp-session-id') ??
+        response.headers.value('Mcp-Session-Id');
+    if (headerVal != null && headerVal.trim().isNotEmpty) {
+      return headerVal.trim();
+    }
+
+    // 2. Check JSON-RPC response body if present
+    if (response.data is Map) {
+      final data = response.data as Map;
+      final res = data['result'];
+      if (res is Map) {
+        final sId = res['sessionId'] ?? res['session_id'];
+        if (sId != null && sId.toString().trim().isNotEmpty) {
+          return sId.toString().trim();
+        }
+      }
+      final sId = data['sessionId'] ?? data['session_id'];
+      if (sId != null && sId.toString().trim().isNotEmpty) {
+        return sId.toString().trim();
+      }
+    }
+    return null;
+  }
+
+  /// Builds request headers including Authorization and standard Mcp-Session-Id
+  Map<String, dynamic> _buildHeaders(
+    McpServerModel server, {
+    String? overrideSessionId,
+    bool includeEventStream = false,
+  }) {
+    final headers = <String, dynamic>{
+      'Content-Type': 'application/json',
+      if (includeEventStream) 'Accept': 'application/json, text/event-stream',
+      ...server.headers,
+    };
+
+    final effectiveSessionId = overrideSessionId ?? server.sessionId;
+    if (effectiveSessionId != null && effectiveSessionId.isNotEmpty) {
+      headers['Mcp-Session-Id'] = effectiveSessionId;
+    }
+    return headers;
+  }
 
   /// Test connection and discover server capabilities and tools
   Future<McpServerModel> connectAndDiscover(McpServerModel server) async {
@@ -51,23 +99,20 @@ class McpClientService {
       };
 
       Map<String, dynamic>? initResponse;
+      String? discoveredSessionId = server.sessionId;
       List<McpToolDefinition> discoveredTools = [];
       List<McpPromptDefinition> discoveredPrompts = [];
       List<McpResourceDefinition> discoveredResources = [];
 
       // Attempt actual remote HTTP / SSE / JSON-RPC call
       try {
-        final headers = <String, dynamic>{
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          ...server.headers,
-        };
+        final initHeaders = _buildHeaders(server, includeEventStream: true);
 
         final response = await _dio.post(
           server.url,
           data: initPayload,
           options: Options(
-            headers: headers,
+            headers: initHeaders,
             sendTimeout: const Duration(seconds: 5),
             receiveTimeout: const Duration(seconds: 5),
             validateStatus: (status) => true,
@@ -80,7 +125,39 @@ class McpClientService {
             response.data is Map<String, dynamic>) {
           initResponse = response.data as Map<String, dynamic>;
 
-          // Fetch tools/list
+          // Extract session id returned during initialize
+          final sid = _extractSessionId(response);
+          if (sid != null) {
+            discoveredSessionId = sid;
+          }
+
+          final authenticatedHeaders = _buildHeaders(
+            server,
+            overrideSessionId: discoveredSessionId,
+            includeEventStream: true,
+          );
+
+          // Standard MCP handshake notification (notifications/initialized)
+          if (discoveredSessionId != null) {
+            try {
+              final notifPayload = {
+                'jsonrpc': '2.0',
+                'method': 'notifications/initialized',
+                'params': {},
+              };
+              await _dio.post(
+                server.url,
+                data: notifPayload,
+                options: Options(
+                  headers: authenticatedHeaders,
+                  sendTimeout: const Duration(seconds: 3),
+                  validateStatus: (_) => true,
+                ),
+              );
+            } catch (_) {}
+          }
+
+          // Fetch tools/list with session id
           final toolsPayload = {
             'jsonrpc': '2.0',
             'id': _rpcIdCounter++,
@@ -90,7 +167,10 @@ class McpClientService {
           final toolsRes = await _dio.post(
             server.url,
             data: toolsPayload,
-            options: Options(headers: headers, validateStatus: (_) => true),
+            options: Options(
+              headers: authenticatedHeaders,
+              validateStatus: (_) => true,
+            ),
           );
           if (toolsRes.data is Map &&
               toolsRes.data['result']?['tools'] is List) {
@@ -130,6 +210,7 @@ class McpClientService {
       return server.copyWith(
         status: McpServerStatus.connected,
         errorMessage: null,
+        sessionId: discoveredSessionId,
         tools: discoveredTools,
         prompts: discoveredPrompts,
         resources: discoveredResources,
@@ -158,6 +239,51 @@ class McpClientService {
     }
   }
 
+  /// Query tools/list from remote MCP server
+  Future<List<McpToolDefinition>> listTools(McpServerModel server) async {
+    final toolsPayload = {
+      'jsonrpc': '2.0',
+      'id': _rpcIdCounter++,
+      'method': 'tools/list',
+      'params': {},
+    };
+
+    final headers = _buildHeaders(server, includeEventStream: true);
+
+    final response = await _dio.post(
+      server.url,
+      data: toolsPayload,
+      options: Options(
+        headers: headers,
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        validateStatus: (_) => true,
+      ),
+    );
+
+    if (response.statusCode != null &&
+        response.statusCode! >= 200 &&
+        response.statusCode! < 300 &&
+        response.data is Map<String, dynamic>) {
+      final data = response.data as Map<String, dynamic>;
+      if (data['result']?['tools'] is List) {
+        final List<McpToolDefinition> tools = [];
+        for (final t in data['result']['tools']) {
+          if (t is Map<String, dynamic>) {
+            tools.add(McpToolDefinition.fromJson(t));
+          }
+        }
+        return tools;
+      }
+    }
+
+    final errorMsg =
+        response.data is Map && response.data['error']?['message'] != null
+        ? response.data['error']['message'].toString()
+        : 'HTTP ${response.statusCode}: ${response.statusMessage ?? 'Unknown error'}';
+    throw Exception('tools/list failed: $errorMsg');
+  }
+
   /// Call an MCP tool on the remote server
   Future<McpToolCallResult> callTool({
     required McpServerModel server,
@@ -174,10 +300,7 @@ class McpClientService {
     };
 
     try {
-      final headers = <String, dynamic>{
-        'Content-Type': 'application/json',
-        ...server.headers,
-      };
+      final headers = _buildHeaders(server);
 
       final response = await _dio.post(
         server.url,
@@ -192,6 +315,8 @@ class McpClientService {
 
       stopwatch.stop();
 
+      final responseSessionId = _extractSessionId(response) ?? server.sessionId;
+
       if (response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
@@ -204,6 +329,7 @@ class McpClientService {
                   data['error']['message']?.toString() ?? 'Tool error',
               result: data['error'],
               latencyMs: stopwatch.elapsedMilliseconds,
+              sessionId: responseSessionId,
             );
           }
           final result = data['result'] ?? data;
@@ -211,6 +337,7 @@ class McpClientService {
             isSuccess: true,
             result: result,
             latencyMs: stopwatch.elapsedMilliseconds,
+            sessionId: responseSessionId,
           );
         }
       }
@@ -221,6 +348,7 @@ class McpClientService {
             'Remote server returned HTTP ${response.statusCode}: ${response.statusMessage}',
         result: response.data,
         latencyMs: stopwatch.elapsedMilliseconds,
+        sessionId: responseSessionId,
       );
     } catch (e) {
       stopwatch.stop();
@@ -228,6 +356,7 @@ class McpClientService {
         isSuccess: false,
         errorMessage: 'Connection error: $e',
         latencyMs: stopwatch.elapsedMilliseconds,
+        sessionId: server.sessionId,
       );
     }
   }

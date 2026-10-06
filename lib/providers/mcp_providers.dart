@@ -55,6 +55,7 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
     final updated = state.map((s) => s.id == server.id ? server : s).toList();
     state = updated;
     await McpStorageService.saveServers(updated);
+    _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(server);
   }
 
   /// Delete an MCP server and its conversation history
@@ -88,6 +89,52 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
 
     // Also update server inside conversation model
     _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(refreshed);
+  }
+
+  /// Reload tools for an MCP server by querying tools/list or reconnecting
+  Future<List<McpToolDefinition>> reloadTools(String serverId) async {
+    final index = state.indexWhere((s) => s.id == serverId);
+    if (index == -1) throw Exception('Server not found');
+
+    final target = state[index];
+    final client = _ref.read(mcpClientServiceProvider);
+
+    List<McpToolDefinition> tools = [];
+    String? errorDetail;
+
+    try {
+      tools = await client.listTools(target);
+    } catch (e) {
+      errorDetail = e.toString();
+      // If direct tools/list fails, fallback to full connectAndDiscover
+      try {
+        final refreshed = await client.connectAndDiscover(target);
+        tools = refreshed.tools;
+        if (refreshed.status == McpServerStatus.error && tools.isEmpty) {
+          errorDetail = refreshed.errorMessage ?? errorDetail;
+        }
+      } catch (err) {
+        errorDetail = err.toString();
+      }
+    }
+
+    final refreshed = target.copyWith(
+      status: tools.isNotEmpty ? McpServerStatus.connected : target.status,
+      tools: tools.isNotEmpty ? tools : target.tools,
+      errorMessage: tools.isNotEmpty ? null : target.errorMessage,
+      lastConnectedAt: DateTime.now(),
+    );
+
+    final updated = state.map((s) => s.id == serverId ? refreshed : s).toList();
+    state = updated;
+    await McpStorageService.saveServers(updated);
+    _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(refreshed);
+
+    if (tools.isEmpty && errorDetail != null) {
+      throw Exception(errorDetail);
+    }
+
+    return tools;
   }
 }
 
@@ -234,6 +281,12 @@ class McpConversationsNotifier extends StateNotifier<List<McpConversationModel>>
       toolName: toolName,
       arguments: arguments,
     );
+
+    // If session ID was returned or updated, update the server model
+    if (result.sessionId != null && result.sessionId != server.sessionId) {
+      final updatedServer = server.copyWith(sessionId: result.sessionId);
+      await _ref.read(mcpServersProvider.notifier).updateServer(updatedServer);
+    }
 
     // 3. Tool Result message
     final resultMsg = McpChatMessage(

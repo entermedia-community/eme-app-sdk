@@ -206,6 +206,7 @@ class McpServerModel {
   final List<McpToolDefinition> tools;
   final List<McpPromptDefinition> prompts;
   final List<McpResourceDefinition> resources;
+  final String? sessionId;
   final DateTime createdAt;
   final DateTime? lastConnectedAt;
 
@@ -225,6 +226,7 @@ class McpServerModel {
     this.tools = const [],
     this.prompts = const [],
     this.resources = const [],
+    this.sessionId,
     required this.createdAt,
     this.lastConnectedAt,
   });
@@ -257,6 +259,7 @@ class McpServerModel {
     List<McpToolDefinition>? tools,
     List<McpPromptDefinition>? prompts,
     List<McpResourceDefinition>? resources,
+    String? sessionId,
     DateTime? createdAt,
     DateTime? lastConnectedAt,
   }) {
@@ -276,6 +279,7 @@ class McpServerModel {
       tools: tools ?? this.tools,
       prompts: prompts ?? this.prompts,
       resources: resources ?? this.resources,
+      sessionId: sessionId ?? this.sessionId,
       createdAt: createdAt ?? this.createdAt,
       lastConnectedAt: lastConnectedAt ?? this.lastConnectedAt,
     );
@@ -344,6 +348,9 @@ class McpServerModel {
       tools: tools,
       prompts: prompts,
       resources: resources,
+      sessionId: json['sessionId']?.toString() ??
+          json['session_id']?.toString() ??
+          json['mcp_session_id']?.toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -370,6 +377,7 @@ class McpServerModel {
       'tools': tools.map((t) => t.toJson()).toList(),
       'prompts': prompts.map((p) => p.toJson()).toList(),
       'resources': resources.map((r) => r.toJson()).toList(),
+      if (sessionId != null) 'sessionId': sessionId,
       'createdAt': createdAt.toIso8601String(),
       if (lastConnectedAt != null) 'lastConnectedAt': lastConnectedAt!.toIso8601String(),
     };

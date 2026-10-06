@@ -41,21 +41,25 @@ void main() {
             description: 'Identifies query bottlenecks',
           ),
         ],
+        sessionId: 'test_session_abc123',
         createdAt: DateTime(2026, 1, 1),
       );
 
       expect(server.id, 'test_mcp_1');
       expect(server.displayInitials, 'PD');
+      expect(server.sessionId, 'test_session_abc123');
       expect(server.tools.length, 1);
       expect(server.tools.first.name, 'execute_sql');
       expect(server.tools.first.properties.containsKey('query'), true);
       expect(server.tools.first.requiredFields.contains('query'), true);
 
       final json = server.toJson();
+      expect(json['sessionId'], 'test_session_abc123');
       final restored = McpServerModel.fromJson(json);
       expect(restored.id, server.id);
       expect(restored.name, server.name);
       expect(restored.url, server.url);
+      expect(restored.sessionId, 'test_session_abc123');
       expect(restored.tools.length, 1);
       expect(restored.tools.first.name, 'execute_sql');
     });
