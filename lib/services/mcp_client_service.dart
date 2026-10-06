@@ -46,10 +46,7 @@ class McpClientService {
             'sampling': {},
             'experimental': {},
           },
-          'clientInfo': {
-            'name': 'EME-Mobile-MCP-Client',
-            'version': '1.0.0',
-          },
+          'clientInfo': {'name': 'EME-Mobile-MCP-Client', 'version': '1.0.0'},
         },
       };
 
@@ -95,7 +92,8 @@ class McpClientService {
             data: toolsPayload,
             options: Options(headers: headers, validateStatus: (_) => true),
           );
-          if (toolsRes.data is Map && toolsRes.data['result']?['tools'] is List) {
+          if (toolsRes.data is Map &&
+              toolsRes.data['result']?['tools'] is List) {
             for (final t in toolsRes.data['result']['tools']) {
               if (t is Map<String, dynamic>) {
                 discoveredTools.add(McpToolDefinition.fromJson(t));
@@ -105,7 +103,8 @@ class McpClientService {
         } else {
           return server.copyWith(
             status: McpServerStatus.error,
-            errorMessage: 'Server returned HTTP ${response.statusCode}: ${response.statusMessage}',
+            errorMessage:
+                'Server returned HTTP ${response.statusCode}: ${response.statusMessage}',
           );
         }
       } catch (networkErr) {
@@ -134,12 +133,16 @@ class McpClientService {
         tools: discoveredTools,
         prompts: discoveredPrompts,
         resources: discoveredResources,
-        serverInfo: initResponse?['result']?['serverInfo'] is Map<String, dynamic>
-            ? initResponse!['result']['serverInfo'] as Map<String, dynamic>
+        serverInfo:
+            initResponse['result']?['serverInfo'] is Map<String, dynamic>
+            ? initResponse['result']['serverInfo'] as Map<String, dynamic>
             : {'name': server.name, 'version': '1.0.0'},
-        capabilities: initResponse?['result']?['capabilities'] is Map<String, dynamic>
-            ? initResponse!['result']['capabilities'] as Map<String, dynamic>
-            : {'tools': {'listChanged': true}},
+        capabilities:
+            initResponse['result']?['capabilities'] is Map<String, dynamic>
+            ? initResponse['result']['capabilities'] as Map<String, dynamic>
+            : {
+                'tools': {'listChanged': true},
+              },
         lastConnectedAt: DateTime.now(),
       );
     } catch (e, stack) {
@@ -167,10 +170,7 @@ class McpClientService {
       'jsonrpc': '2.0',
       'id': _rpcIdCounter++,
       'method': 'tools/call',
-      'params': {
-        'name': toolName,
-        'arguments': arguments,
-      },
+      'params': {'name': toolName, 'arguments': arguments},
     };
 
     try {
@@ -200,7 +200,8 @@ class McpClientService {
           if (data['error'] != null) {
             return McpToolCallResult(
               isSuccess: false,
-              errorMessage: data['error']['message']?.toString() ?? 'Tool error',
+              errorMessage:
+                  data['error']['message']?.toString() ?? 'Tool error',
               result: data['error'],
               latencyMs: stopwatch.elapsedMilliseconds,
             );
@@ -275,8 +276,11 @@ class McpClientService {
     // Default assistant response with tool suggestions
     final toolListStr = server.tools.isNotEmpty
         ? server.tools
-            .map((t) => '• **${t.name}**: ${t.description.isNotEmpty ? t.description : 'Tool action'}')
-            .join('\n')
+              .map(
+                (t) =>
+                    '• **${t.name}**: ${t.description.isNotEmpty ? t.description : 'Tool action'}',
+              )
+              .join('\n')
         : '• No tools currently advertised by this server.';
 
     return McpChatMessage(
