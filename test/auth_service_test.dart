@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:eme_app_sdk/eme_app_sdk.dart';
 
@@ -130,6 +129,64 @@ Dio createMockAuthDio() {
                         'http://localhost:8080/site/mediadb/services/module/asset/generated/Users/The.A/jefferson-santos-9SoCnyQmkzI-unsplash.jpg/image200x200.webp',
                   },
                 ],
+              },
+            ),
+          );
+        } else if (path.contains('getemeservers.json') ||
+            path.contains('getuseremeservers.json')) {
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
+                'emeservers': [
+                  {
+                    'id': 'srv_mock_1',
+                    'name': 'Test Server',
+                    'subtitle': 'SUBTITLE',
+                    'serverdescription': 'Test server description',
+                    'servercategory': 'Software Tools',
+                    'primarycolor': '#2563EB',
+                    'secondarycolor': '#EFF6FF',
+                    'membercount': '42',
+                    'joined': 'true',
+                    'servicesoffered': 'Code, Testing',
+                  },
+                ],
+              },
+            ),
+          );
+        } else if (path.contains('getemeserver.json')) {
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
+                'emeserver': {
+                  'id': 'srv_mock_1',
+                  'name': 'Test Server',
+                  'subtitle': 'SUBTITLE',
+                  'serverdescription': 'Test server description',
+                  'servercategory': 'Software Tools',
+                  'primarycolor': '#2563EB',
+                  'secondarycolor': '#EFF6FF',
+                  'membercount': '42',
+                  'joined': 'true',
+                  'servicesoffered': 'Code, Testing',
+                },
+              },
+            ),
+          );
+        } else if (path.contains('joinemeserver.json') ||
+            path.contains('leaveemeserver.json')) {
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
               },
             ),
           );

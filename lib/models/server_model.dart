@@ -90,33 +90,154 @@ class ServerModel {
   }
 
   factory ServerModel.fromJson(Map<String, dynamic> json) {
-    return ServerModel(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      subtitle: json['subtitle'] as String?,
-      description: json['description'] as String? ?? '',
-      category: json['category'] as String? ?? '',
-      primaryColor: json['primaryColor'] != null
-          ? Color(json['primaryColor'] as int)
-          : const Color(0xFF2563EB),
-      secondaryColor: json['secondaryColor'] != null
-          ? Color(json['secondaryColor'] as int)
-          : const Color(0xFFEFF6FF),
-      memberCount: (json['memberCount'] as num?)?.toInt() ?? 120,
-      isJoined: json['isJoined'] as bool? ?? false,
-      servicesOffered:
-          (json['servicesOffered'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          const [],
-      avatarUrl: json['avatarUrl'] as String?,
-      lastNotification: json['lastNotification'] as String?,
-      lastNotificationTime: json['lastNotificationTime'] as String?,
-      statusColor: json['statusColor'] != null
-          ? Color(json['statusColor'] as int)
-          : null,
-      serverMediaDBUrl: json['serverMediaDBUrl'] as String? ?? '',
+    final id = (json['id'] ?? json['serverid'] ?? json['_id'] ?? '').toString();
+    final title = (json['title'] ??
+            json['name'] ??
+            json['label'] ??
+            json['servername'] ??
+            id)
+        .toString();
+    final subtitle = json['subtitle'] as String? ??
+        json['shortdescription'] as String?;
+    final description = (json['description'] ??
+            json['serverdescription'] ??
+            json['details'] ??
+            '')
+        .toString();
+    final category = (json['category'] ??
+            json['servercategory'] ??
+            '')
+        .toString();
+    final primaryColor = _parseColor(
+      json['primaryColor'] ?? json['primarycolor'],
+      const Color(0xFF2563EB),
     );
+    final secondaryColor = _parseColor(
+      json['secondaryColor'] ?? json['secondarycolor'],
+      const Color(0xFFEFF6FF),
+    );
+    final memberCount = int.tryParse(
+          (json['memberCount'] ??
+                  json['membercount'] ??
+                  json['members'] ??
+                  '')
+              .toString(),
+        ) ??
+        0;
+    final isJoined = _parseBool(
+      json['isJoined'] ?? json['joined'] ?? json['is_joined'],
+    );
+    final servicesOffered = _parseList(
+      json['servicesOffered'] ??
+          json['servicesoffered'] ??
+          json['services'] ??
+          json['tags'],
+    );
+    final avatarUrl = (json['avatarUrl'] ??
+        json['avatarurl'] ??
+        json['iconasset'] ??
+        json['iconurl'] ??
+        json['icon']) as String?;
+    final lastNotification = (json['lastNotification'] ??
+        json['lastnotification'] ??
+        json['notification']) as String?;
+    final lastNotificationTime = (json['lastNotificationTime'] ??
+        json['lastnotificationtime']) as String?;
+    final statusColor = json['statusColor'] != null || json['statuscolor'] != null
+        ? _parseColor(json['statusColor'] ?? json['statuscolor'], primaryColor)
+        : null;
+    final serverMediaDBUrl = (json['serverMediaDBUrl'] ??
+            json['servermediadburl'] ??
+            json['mediadburl'] ??
+            json['url'] ??
+            '')
+        .toString();
+    final serverFunction = (json['serverFunction'] ??
+            json['serverfunction'] ??
+            json['function'] ??
+            '')
+        .toString();
+
+    return ServerModel(
+      id: id,
+      title: title,
+      subtitle: subtitle,
+      description: description,
+      category: category,
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor,
+      memberCount: memberCount,
+      isJoined: isJoined,
+      servicesOffered: servicesOffered,
+      avatarUrl: avatarUrl,
+      lastNotification: lastNotification,
+      lastNotificationTime: lastNotificationTime,
+      statusColor: statusColor,
+      serverMediaDBUrl: serverMediaDBUrl,
+      serverFunction: serverFunction,
+    );
+  }
+
+  static Color _parseColor(dynamic val, Color fallback) {
+    if (val == null) return fallback;
+    if (val is int) return Color(val);
+    if (val is String) {
+      var hex = val.trim();
+      if (hex.isEmpty) return fallback;
+      if (hex.startsWith('#')) {
+        hex = hex.substring(1);
+      } else if (hex.startsWith('0x') || hex.startsWith('0X')) {
+        hex = hex.substring(2);
+      }
+      if (hex.length == 6) {
+        hex = 'FF$hex';
+      }
+      final parsed = int.tryParse(hex, radix: 16);
+      if (parsed != null) {
+        return Color(parsed);
+      }
+    }
+    return fallback;
+  }
+
+  static bool _parseBool(dynamic val) {
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is num) return val != 0;
+    if (val is String) {
+      final s = val.trim().toLowerCase();
+      return s == 'true' || s == '1' || s == 'yes';
+    }
+    return false;
+  }
+
+  static List<String> _parseList(dynamic val) {
+    if (val == null) return const [];
+    if (val is List) {
+      return val
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    if (val is String) {
+      if (val.trim().isEmpty) return const [];
+      if (val.contains(',')) {
+        return val
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+      if (val.contains('|')) {
+        return val
+            .split('|')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+      return [val.trim()];
+    }
+    return const [];
   }
 
   Map<String, dynamic> toJson() {

@@ -24,8 +24,11 @@ class ApiConfig {
 
 /// Abstract contract for EME World API operations
 abstract class IApiService {
-  Future<List<ServerModel>> fetchServers();
+  Future<List<ServerModel>> fetchServers({String? query, String? category});
   Future<ServerModel?> fetchServerById(String id);
+  Future<bool> joinServer(String serverId);
+  Future<bool> leaveServer(String serverId);
+  Future<List<ServerModel>> fetchUserServers();
   Future<List<EmeProfileModel>> fetchSpecialistProfiles();
   Future<ProfileModel> fetchUserProfile({String? userId});
   Future<List<ProductMessageModel>> fetchProducts({
@@ -105,23 +108,318 @@ class ApiService implements IApiService {
   // ==========================================
 
   @override
-  Future<List<ServerModel>> fetchServers() async {
-    final res = await _get('/servers');
-    final list = res is Map<String, dynamic>
-        ? (res['data'] as List<dynamic>? ?? [])
-        : (res is List<dynamic> ? res : []);
-    return list
-        .map((item) => ServerModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+  Future<List<ServerModel>> fetchServers({
+    String? query,
+    String? category,
+  }) async {
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty) return [];
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/module/emeserver/getemeservers.json';
+
+    final queryParams = <String, dynamic>{
+      if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+      if (category != null && category.trim().isNotEmpty && category != 'All')
+        'category': category.trim(),
+    };
+
+    debugPrint(
+      '[ApiService] fetchServers GET URL: $primaryUrl params: $queryParams',
+    );
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.get(
+        primaryUrl,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchServers response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      List<dynamic>? serverList;
+      if (data is Map<String, dynamic>) {
+        serverList = (data['emeservers'] ??
+                data['servers'] ??
+                data['results'] ??
+                data['data']) as List<dynamic>?;
+      } else if (data is List<dynamic>) {
+        serverList = data;
+      }
+
+      if (serverList != null) {
+        return serverList
+            .map((item) => ServerModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchServers network error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchServers failed',
+        customKeys: {'url': primaryUrl},
+      );
+    }
+    return [];
   }
 
   @override
   Future<ServerModel?> fetchServerById(String id) async {
-    final servers = await fetchServers();
-    return servers.cast<ServerModel?>().firstWhere(
-      (s) => s?.id == id,
-      orElse: () => null,
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty || id.isEmpty) return null;
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/module/emeserver/getemeserver.json';
+
+    debugPrint('[ApiService] fetchServerById GET URL: $primaryUrl?serverid=$id');
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.get(
+        primaryUrl,
+        queryParameters: {'serverid': id},
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        final serverMap =
+            data['emeserver'] ?? data['server'] ?? data['data'] ?? data;
+        if (serverMap is Map<String, dynamic>) {
+          return ServerModel.fromJson(serverMap);
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchServerById network error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchServerById failed',
+        customKeys: {'url': primaryUrl, 'serverid': id},
+      );
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> joinServer(String serverId) async {
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty || serverId.isEmpty) return false;
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/module/emeserver/joinemeserver.json';
+
+    debugPrint(
+      '[ApiService] joinServer POST URL: $primaryUrl?serverid=$serverId',
     );
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.post(
+        primaryUrl,
+        queryParameters: {'serverid': serverId},
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (response.statusCode == 200) {
+        if (data is Map<String, dynamic>) {
+          final resp = data['response'];
+          if (resp is Map<String, dynamic> && resp['status'] == 'error') {
+            return false;
+          }
+        }
+        return true;
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] joinServer error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.joinServer failed',
+        customKeys: {'url': primaryUrl, 'serverid': serverId},
+      );
+    }
+    return false;
+  }
+
+  @override
+  Future<bool> leaveServer(String serverId) async {
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty || serverId.isEmpty) return false;
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl =
+        '$cleanBase/services/module/emeserver/leaveemeserver.json';
+
+    debugPrint(
+      '[ApiService] leaveServer POST URL: $primaryUrl?serverid=$serverId',
+    );
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.post(
+        primaryUrl,
+        queryParameters: {'serverid': serverId},
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (response.statusCode == 200) {
+        if (data is Map<String, dynamic>) {
+          final resp = data['response'];
+          if (resp is Map<String, dynamic> && resp['status'] == 'error') {
+            return false;
+          }
+        }
+        return true;
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] leaveServer error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.leaveServer failed',
+        customKeys: {'url': primaryUrl, 'serverid': serverId},
+      );
+    }
+    return false;
+  }
+
+  @override
+  Future<List<ServerModel>> fetchUserServers() async {
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty) return [];
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl =
+        '$cleanBase/services/module/emeserver/getuseremeservers.json';
+
+    debugPrint('[ApiService] fetchUserServers GET URL: $primaryUrl');
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.get(
+        primaryUrl,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      List<dynamic>? serverList;
+      if (data is Map<String, dynamic>) {
+        serverList = (data['emeservers'] ??
+                data['servers'] ??
+                data['results'] ??
+                data['data']) as List<dynamic>?;
+      } else if (data is List<dynamic>) {
+        serverList = data;
+      }
+
+      if (serverList != null) {
+        return serverList
+            .map((item) => ServerModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchUserServers error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchUserServers failed',
+        customKeys: {'url': primaryUrl},
+      );
+    }
+    return [];
   }
 
   // ==========================================

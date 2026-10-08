@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eme_app_sdk/eme_app_sdk.dart';
 import 'auth_service_test.dart';
 
@@ -97,8 +96,10 @@ void main() {
         );
         addTearDown(container.dispose);
 
+        await container.read(serverProvider.notifier).loadServersFromApi();
         final serverState = container.read(serverProvider);
         expect(serverState.servers.isNotEmpty, true);
+        expect(serverState.servers.first.id, 'srv_mock_1');
 
         await container.read(emeProfileProvider.notifier).loadUsers();
         final profileState = container.read(emeProfileProvider);

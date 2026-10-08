@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/server_model.dart';
 import '../services/api_service.dart';
@@ -93,79 +92,25 @@ class ServerNotifier extends StateNotifier<ServerState> {
   final IApiService? apiService;
 
   ServerNotifier({this.apiService})
-      : super(
-        const ServerState(
-          servers: [
-            ServerModel(
-              id: 'srv_008',
-              title: 'Lakeview Stays & House Rentals',
-              subtitle: 'HOUSE RENTALS',
-              description:
-                  'Verified off-grid eco-villas, lakefront sanctuaries, private docks, and long-term stays secured by decentralized escrow.',
-              category: 'Rental & Gear',
-              primaryColor: Color(0xFF0D9488),
-              secondaryColor: Color(0xFFCCFBF1),
-              memberCount: 530,
-              isJoined: true,
-              servicesOffered: [
-                'Lakefront Solar Eco-Villas',
-                'Cliffside Artist Retreats',
-                'Private Boat Dock Access',
-              ],
-              lastNotification:
-                  'Lakeview Solar Eco-Villa added for weekend booking',
-              lastNotificationTime: '15m ago',
-              statusColor: Color(0xFF0D9488),
-            ),
-            ServerModel(
-              id: 'srv_009',
-              title: 'EcoTransit Mobility & Rides',
-              subtitle: 'ZERO-EMISSION RIDESHARE',
-              description:
-                  'Community-owned ride sharing, electric shuttle routes, and localized micro-transit with zero intermediary platform fees.',
-              category: 'Mobility & Rides',
-              primaryColor: Color(0xFF0284C7),
-              secondaryColor: Color(0xFFE0F2FE),
-              memberCount: 1120,
-              isJoined: true,
-              servicesOffered: [
-                'On-Demand EV Rides',
-                'Daily Intercity Carpool',
-                'Eco-Cargo Delivery',
-              ],
-              lastNotification: '14 electric shuttles active in lake loop',
-              lastNotificationTime: '10m ago',
-              statusColor: Color(0xFF0284C7),
-            ),
-            ServerModel(
-              id: 'srv_010',
-              title: 'Artisan Goods & Organic Market',
-              subtitle: 'PRODUCER-DIRECT COMMERCE',
-              description:
-                  'Direct-to-consumer marketplace for single-origin shade coffee, handwoven indigenous textiles, and organic bio-goods.',
-              category: 'Marketplace & Goods',
-              primaryColor: Color(0xFFD97706),
-              secondaryColor: Color(0xFFFEF3C7),
-              memberCount: 1680,
-              isJoined: true,
-              servicesOffered: [
-                'Single-Origin Shade Coffee',
-                'Handwoven Indigenous Textiles',
-                'Organic Seedling Kits',
-              ],
-              lastNotification: 'Fresh harvest batch roasted and packaged',
-              lastNotificationTime: '20m ago',
-              statusColor: Color(0xFFD97706),
-            ),
-          ],
-        ),
-      );
+      : super(const ServerState(servers: [], isLoading: true)) {
+    loadServersFromApi();
+  }
 
-  Future<void> loadServersFromApi() async {
-    if (apiService == null) return;
+  Future<void> loadServersFromApi({String? query, String? category}) async {
+    if (apiService == null) {
+      state = state.copyWith(isLoading: false);
+      return;
+    }
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final fetched = await apiService!.fetchServers();
+      final fetched = await apiService!.fetchServers(
+        query:
+            query ??
+            (state.searchQuery.isNotEmpty ? state.searchQuery : null),
+        category:
+            category ??
+            (state.selectedCategory != 'All' ? state.selectedCategory : null),
+      );
       state = state.copyWith(servers: fetched, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -184,14 +129,49 @@ class ServerNotifier extends StateNotifier<ServerState> {
     state = state.copyWith(servers: [server, ...state.servers]);
   }
 
-  void toggleJoin(String id) {
+  Future<void> toggleJoin(String id) async {
+    final server = state.servers.cast<ServerModel?>().firstWhere(
+      (s) => s?.id == id,
+      orElse: () => null,
+    );
+    if (server == null) return;
+
+    final targetJoined = !server.isJoined;
+    // Optimistic update
     final updated = state.servers.map((s) {
       if (s.id == id) {
-        return s.copyWith(isJoined: !s.isJoined);
+        return s.copyWith(isJoined: targetJoined);
       }
       return s;
     }).toList();
     state = state.copyWith(servers: updated);
+
+    // Call backend API
+    if (apiService != null) {
+      try {
+        final success = targetJoined
+            ? await apiService!.joinServer(id)
+            : await apiService!.leaveServer(id);
+        if (!success) {
+          // Revert on failure
+          final reverted = state.servers.map((s) {
+            if (s.id == id) {
+              return s.copyWith(isJoined: !targetJoined);
+            }
+            return s;
+          }).toList();
+          state = state.copyWith(servers: reverted);
+        }
+      } catch (e) {
+        final reverted = state.servers.map((s) {
+          if (s.id == id) {
+            return s.copyWith(isJoined: !targetJoined);
+          }
+          return s;
+        }).toList();
+        state = state.copyWith(servers: reverted);
+      }
+    }
   }
 }
 
