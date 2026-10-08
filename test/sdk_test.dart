@@ -30,17 +30,16 @@ void main() {
         id: 'srv_test',
         title: 'Test Node',
         description: 'Test Description',
-        category: ServerCategory.softwareTools,
-        tags: ['Tools'],
-        iconData: Icons.hub,
+        category: 'Software Tools',
       );
       expect(server.id, 'srv_test');
-      expect(server.category.label, 'Software Tools');
+      expect(server.category, 'Software Tools');
+      expect(server.displayInitials, 'TN');
 
       final serverJson = server.toJson();
       final fromJson = ServerModel.fromJson(serverJson);
       expect(fromJson.id, 'srv_test');
-      expect(fromJson.category, ServerCategory.softwareTools);
+      expect(fromJson.category, 'Software Tools');
     });
 
     test('ChatMessage and MessageRenderType work properly', () {
