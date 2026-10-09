@@ -99,7 +99,7 @@ class ServerModel {
                 json['details'] ??
                 '')
             .toString();
-    final category = ServerCategoryModel.fromJson(json['category'] ?? {});
+    final category = ServerCategoryModel.fromJson(json['category']);
     final primaryColor = _parseColor(
       json['primaryColor'] ?? json['primarycolor'],
       const Color(0xFF2563EB),
@@ -244,7 +244,7 @@ class ServerModel {
       'name': name,
       if (subtitle != null) 'subtitle': subtitle,
       'description': description,
-      'category': category,
+      'category': category.toJson(),
       'primaryColor': primaryColor.toARGB32(),
       'secondaryColor': secondaryColor.toARGB32(),
       'memberCount': memberCount,

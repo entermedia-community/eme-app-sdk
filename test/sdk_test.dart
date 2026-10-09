@@ -29,16 +29,21 @@ void main() {
         id: 'srv_test',
         name: 'Test Node',
         description: 'Test Description',
-        category: 'Software Tools',
+        category: ServerCategoryModel(
+          id: 'software_tools',
+          name: 'Software Tools',
+        ),
       );
       expect(server.id, 'srv_test');
-      expect(server.category, 'Software Tools');
+      expect(server.category.name, 'Software Tools');
+      expect(server.categoryLabel, 'Software Tools');
       expect(server.displayInitials, 'TN');
 
       final serverJson = server.toJson();
       final fromJson = ServerModel.fromJson(serverJson);
       expect(fromJson.id, 'srv_test');
-      expect(fromJson.category, 'Software Tools');
+      expect(fromJson.category.name, 'Software Tools');
+      expect(fromJson.categoryLabel, 'Software Tools');
     });
 
     test('ChatMessage and MessageRenderType work properly', () {

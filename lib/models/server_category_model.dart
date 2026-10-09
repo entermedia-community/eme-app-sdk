@@ -9,10 +9,21 @@ class ServerCategoryModel {
     name: 'All',
   );
 
-  factory ServerCategoryModel.fromJson(Map<String, dynamic> json) {
-    final id = json['id'].toString().trim();
-    final name = json['name'].toString().trim();
-    return ServerCategoryModel(id: id, name: name);
+  factory ServerCategoryModel.fromJson(dynamic json) {
+    if (json is ServerCategoryModel) return json;
+    if (json is Map) {
+      final id = json['id'].toString().trim();
+      final name = (json['name'] ?? json['id']).toString().trim();
+      return ServerCategoryModel(
+        id: id.isNotEmpty ? id : 'general',
+        name: name.isNotEmpty ? name : 'General',
+      );
+    }
+    if (json is String && json.trim().isNotEmpty) {
+      final str = json.trim();
+      return ServerCategoryModel(id: str, name: str);
+    }
+    return const ServerCategoryModel(id: 'general', name: 'General');
   }
 
   Map<String, dynamic> toJson() {
