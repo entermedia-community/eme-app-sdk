@@ -25,6 +25,7 @@ class ApiConfig {
 /// Abstract contract for EME World API operations
 abstract class IApiService {
   Future<List<ServerModel>> fetchServers({String? query, String? category});
+  Future<List<ServerCategoryModel>> fetchServerCategories();
   Future<ServerModel?> fetchServerById(String id);
   Future<bool> joinServer(String serverId);
   Future<bool> leaveServer(String serverId);
@@ -177,6 +178,88 @@ class ApiService implements IApiService {
         e,
         stack,
         reason: 'ApiService.fetchServers failed',
+        customKeys: {'url': primaryUrl},
+      );
+    }
+    return [];
+  }
+
+  @override
+  Future<List<ServerCategoryModel>> fetchServerCategories() async {
+    final cleanBase = _cleanBaseUrl;
+    if (cleanBase.isEmpty) return [];
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/module/emeserver/categories.json';
+
+    debugPrint('[ApiService] fetchServerCategories GET URL: $primaryUrl');
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      final response = await dio.get(
+        primaryUrl,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchServerCategories response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      List<dynamic>? rawList;
+      if (data is Map<String, dynamic>) {
+        rawList = (data['categories'] ?? data['data']) as List<dynamic>?;
+      } else if (data is List<dynamic>) {
+        rawList = data;
+      }
+
+      if (rawList != null) {
+        final List<ServerCategoryModel> result = [];
+        for (final item in rawList) {
+          if (item is Map<String, dynamic>) {
+            final id = item['id']?.toString().trim();
+            final name = item['name']?.toString().trim();
+            if (name != null && name.isNotEmpty) {
+              final cat = ServerCategoryModel(
+                id: (id != null && id.isNotEmpty) ? id : name,
+                name: name,
+              );
+              if (!result.any((c) => c.id == cat.id)) {
+                result.add(cat);
+              }
+            }
+          } else if (item is String) {
+            final trimmed = item.trim();
+            if (trimmed.isNotEmpty && !result.any((c) => c.name == trimmed)) {
+              result.add(ServerCategoryModel(id: trimmed, name: trimmed));
+            }
+          }
+        }
+        return result;
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchServerCategories network error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchServerCategories failed',
         customKeys: {'url': primaryUrl},
       );
     }

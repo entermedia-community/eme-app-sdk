@@ -1,26 +1,18 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/server_category_model.dart';
 import '../models/server_model.dart';
 import '../services/api_service.dart';
+import '../services/shared_preferences.dart';
 import 'api_providers.dart';
 
-final List<String> kServerCategories = [
-  'All',
-  'Rental & Gear',
-  'Mobility & Rides',
-  'Marketplace & Goods',
-  'Eco Tourism',
-  'Finance',
-  'Artificial Intelligence',
-  'Social Services',
-  'Software Tools',
-  'Research',
-  'Education',
-  'Healthcare',
-  'Startup',
-];
+/// Initial/fallback server categories.
+final List<ServerCategoryModel> kServerCategories = [];
 
 class ServerState {
   final List<ServerModel> servers;
+  final List<ServerCategoryModel> categories;
   final String selectedCategory;
   final String searchQuery;
   final bool isLoading;
@@ -28,9 +20,10 @@ class ServerState {
 
   const ServerState({
     required this.servers,
+    this.categories = const [],
     this.selectedCategory = 'All',
     this.searchQuery = '',
-    this.isLoading = false,
+    this.isLoading = true,
     this.error,
   });
 
@@ -48,7 +41,10 @@ class ServerState {
     return servers.where((item) {
       // Category Filter
       final matchesCategory =
-          selectedCategory == 'All' || item.category == selectedCategory;
+          selectedCategory == 'All' ||
+          selectedCategory == 'all' ||
+          selectedCategory.isEmpty ||
+          item.category == selectedCategory;
 
       if (!matchesCategory) return false;
 
@@ -70,6 +66,7 @@ class ServerState {
 
   ServerState copyWith({
     List<ServerModel>? servers,
+    List<ServerCategoryModel>? categories,
     String? selectedCategory,
     String? searchQuery,
     bool? isLoading,
@@ -77,6 +74,7 @@ class ServerState {
   }) {
     return ServerState(
       servers: servers ?? this.servers,
+      categories: categories ?? this.categories,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
@@ -91,21 +89,85 @@ class ServerNotifier extends StateNotifier<ServerState> {
   ServerNotifier({this.apiService})
     : super(const ServerState(servers: [], isLoading: true)) {
     loadServersFromApi();
+    _initCategories();
   }
 
-  Future<void> loadServersFromApi({String? query, String? category}) async {
+  Future<void> _initCategories() async {
+    await _loadCachedCategories();
+    await reloadCategories(force: false);
+  }
+
+  Future<void> _loadCachedCategories() async {
+    try {
+      final cached = await SharedPref.getCachedServerCategories();
+      if (cached != null && cached.isNotEmpty) {
+        state = state.copyWith(categories: cached);
+      }
+    } catch (_) {}
+  }
+
+  /// Silently reloads categories once a day (if force is false) or unconditionally (if force is true).
+  Future<void> reloadCategories({bool force = false}) async {
+    if (apiService == null) return;
+    if (!force) {
+      final lastFetch = await SharedPref.getServerCategoriesLastFetchTime();
+      if (lastFetch != null &&
+          DateTime.now().difference(lastFetch) < const Duration(days: 1)) {
+        return;
+      }
+    }
+
+    try {
+      final fetched = await apiService!.fetchServerCategories();
+      if (fetched.isNotEmpty) {
+        final categoriesWithAll = fetched.any(
+              (c) => c.id == 'all' || c.name.toLowerCase() == 'all',
+            )
+            ? fetched
+            : [ServerCategoryModel.all, ...fetched];
+        await SharedPref.saveServerCategories(categoriesWithAll);
+        state = state.copyWith(categories: categoriesWithAll);
+      }
+    } catch (e) {
+      debugPrint('[ServerNotifier] Silently failed to reload categories: $e');
+    }
+  }
+
+  /// Reloads both servers and categories when user pulls to refresh.
+  Future<void> refresh() async {
+    await Future.wait([loadServersFromApi(), reloadCategories(force: true)]);
+  }
+
+  Future<void> loadServersFromApi({
+    String? query,
+    String? category,
+    bool forceRefreshCategories = false,
+  }) async {
+    if (forceRefreshCategories) {
+      unawaited(reloadCategories(force: true));
+    }
     if (apiService == null) {
       state = state.copyWith(isLoading: false);
       return;
     }
-    state = state.copyWith(isLoading: true, error: null);
+    final effectiveQuery =
+        query ?? (state.searchQuery.isNotEmpty ? state.searchQuery : null);
+    final effectiveCategory =
+        category ??
+        (state.selectedCategory != 'All' && state.selectedCategory != 'all'
+            ? state.selectedCategory
+            : null);
+
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      searchQuery: query ?? state.searchQuery,
+      selectedCategory: category ?? state.selectedCategory,
+    );
     try {
       final fetched = await apiService!.fetchServers(
-        query:
-            query ?? (state.searchQuery.isNotEmpty ? state.searchQuery : null),
-        category:
-            category ??
-            (state.selectedCategory != 'All' ? state.selectedCategory : null),
+        query: effectiveQuery,
+        category: effectiveCategory,
       );
       state = state.copyWith(servers: fetched, isLoading: false);
     } catch (e) {
@@ -114,11 +176,11 @@ class ServerNotifier extends StateNotifier<ServerState> {
   }
 
   void setCategory(String category) {
-    state = state.copyWith(selectedCategory: category);
+    loadServersFromApi(category: category);
   }
 
   void setSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
+    loadServersFromApi(query: query);
   }
 
   void addServer(ServerModel server) {

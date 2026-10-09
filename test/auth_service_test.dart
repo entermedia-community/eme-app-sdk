@@ -189,6 +189,23 @@ Dio createMockAuthDio() {
               },
             ),
           );
+        } else if (path.contains('categories.json')) {
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'response': {'status': 'ok'},
+                'categories': [
+                  {'id': 'all', 'name': 'All'},
+                  {'id': 'rental_gear', 'name': 'Rental & Gear'},
+                  {'id': 'mobility', 'name': 'Mobility & Rides'},
+                  {'id': 'marketplace', 'name': 'Marketplace & Goods'},
+                  {'id': 'software_tools', 'name': 'Software Tools'},
+                ],
+              },
+            ),
+          );
         }
         return handler.next(options);
       },

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/em_user.dart';
+import '../models/server_category_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPref {
@@ -106,5 +107,38 @@ class SharedPref {
     prefs.remove("recent");
     // remove emUser
     prefs.remove("emUser");
+  }
+
+  static const String _categoriesCacheKey = 'eme_server_categories_cache';
+  static const String _categoriesTimestampKey = 'eme_server_categories_last_fetch';
+
+  static Future<void> saveServerCategories(List<ServerCategoryModel> categories) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final jsonList = categories.map((c) => jsonEncode(c.toJson())).toList();
+    await prefs.setStringList(_categoriesCacheKey, jsonList);
+    await prefs.setInt(
+      _categoriesTimestampKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  static Future<List<ServerCategoryModel>?> getCachedServerCategories() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_categoriesCacheKey);
+    if (list == null) return null;
+    try {
+      return list
+          .map((item) => ServerCategoryModel.fromJson(jsonDecode(item) as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<DateTime?> getServerCategoriesLastFetchTime() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt(_categoriesTimestampKey);
+    if (ms == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 }
