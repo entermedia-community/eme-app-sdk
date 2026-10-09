@@ -27,7 +27,7 @@ void main() {
     test('Server and Profile models instantiate properly', () {
       const server = ServerModel(
         id: 'srv_test',
-        title: 'Test Node',
+        name: 'Test Node',
         description: 'Test Description',
         category: 'Software Tools',
       );

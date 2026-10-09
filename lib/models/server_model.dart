@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class ServerModel {
   final String id;
-  final String title;
+  final String name;
   final String? subtitle;
   final String description;
   final String? category;
@@ -19,12 +19,12 @@ class ServerModel {
   final String serverFunction;
 
   String get displayInitials {
-    if (title.isNotEmpty) {
-      final words = title.trim().split(RegExp(r'\s+'));
+    if (name.isNotEmpty) {
+      final words = name.trim().split(RegExp(r'\s+'));
       if (words.length >= 2 && words[0].isNotEmpty && words[1].isNotEmpty) {
         return (words[0][0] + words[1][0]).toUpperCase();
       }
-      return title.substring(0, title.length.clamp(1, 2)).toUpperCase();
+      return name.substring(0, name.length.clamp(1, 2)).toUpperCase();
     }
     return id.substring(0, id.length.clamp(1, 2)).toUpperCase();
   }
@@ -34,7 +34,7 @@ class ServerModel {
 
   const ServerModel({
     required this.id,
-    required this.title,
+    required this.name,
     this.subtitle,
     required this.description,
     required this.category,
@@ -53,7 +53,7 @@ class ServerModel {
 
   ServerModel copyWith({
     String? id,
-    String? title,
+    String? name,
     String? subtitle,
     String? description,
     String? category,
@@ -71,7 +71,7 @@ class ServerModel {
   }) {
     return ServerModel(
       id: id ?? this.id,
-      title: title ?? this.title,
+      name: name ?? this.name,
       subtitle: subtitle ?? this.subtitle,
       description: description ?? this.description,
       category: category ?? this.category,
@@ -91,22 +91,15 @@ class ServerModel {
 
   factory ServerModel.fromJson(Map<String, dynamic> json) {
     final id = (json['id'] ?? json['serverid'] ?? json['_id'] ?? '').toString();
-    final title = (json['title'] ??
-            json['name'] ??
-            json['label'] ??
-            json['servername'] ??
-            id)
-        .toString();
-    final subtitle = json['subtitle'] as String? ??
-        json['shortdescription'] as String?;
-    final description = (json['description'] ??
-            json['serverdescription'] ??
-            json['details'] ??
-            '')
-        .toString();
-    final category = (json['category'] ??
-            json['servercategory'] ??
-            '')
+    final subtitle =
+        json['subtitle'] as String? ?? json['shortdescription'] as String?;
+    final description =
+        (json['description'] ??
+                json['serverdescription'] ??
+                json['details'] ??
+                '')
+            .toString();
+    final category = (json['category'] ?? json['servercategory'] ?? '')
         .toString();
     final primaryColor = _parseColor(
       json['primaryColor'] ?? json['primarycolor'],
@@ -116,11 +109,9 @@ class ServerModel {
       json['secondaryColor'] ?? json['secondarycolor'],
       const Color(0xFFEFF6FF),
     );
-    final memberCount = int.tryParse(
-          (json['memberCount'] ??
-                  json['membercount'] ??
-                  json['members'] ??
-                  '')
+    final memberCount =
+        int.tryParse(
+          (json['memberCount'] ?? json['membercount'] ?? json['members'] ?? '')
               .toString(),
         ) ??
         0;
@@ -133,34 +124,42 @@ class ServerModel {
           json['services'] ??
           json['tags'],
     );
-    final avatarUrl = (json['avatarUrl'] ??
-        json['avatarurl'] ??
-        json['iconasset'] ??
-        json['iconurl'] ??
-        json['icon']) as String?;
-    final lastNotification = (json['lastNotification'] ??
-        json['lastnotification'] ??
-        json['notification']) as String?;
-    final lastNotificationTime = (json['lastNotificationTime'] ??
-        json['lastnotificationtime']) as String?;
-    final statusColor = json['statusColor'] != null || json['statuscolor'] != null
+    final avatarUrl =
+        (json['avatarUrl'] ??
+                json['avatarurl'] ??
+                json['iconasset'] ??
+                json['iconurl'] ??
+                json['icon'])
+            as String?;
+    final lastNotification =
+        (json['lastNotification'] ??
+                json['lastnotification'] ??
+                json['notification'])
+            as String?;
+    final lastNotificationTime =
+        (json['lastNotificationTime'] ?? json['lastnotificationtime'])
+            as String?;
+    final statusColor =
+        json['statusColor'] != null || json['statuscolor'] != null
         ? _parseColor(json['statusColor'] ?? json['statuscolor'], primaryColor)
         : null;
-    final serverMediaDBUrl = (json['serverMediaDBUrl'] ??
-            json['servermediadburl'] ??
-            json['mediadburl'] ??
-            json['url'] ??
-            '')
-        .toString();
-    final serverFunction = (json['serverFunction'] ??
-            json['serverfunction'] ??
-            json['function'] ??
-            '')
-        .toString();
+    final serverMediaDBUrl =
+        (json['serverMediaDBUrl'] ??
+                json['servermediadburl'] ??
+                json['mediadburl'] ??
+                json['url'] ??
+                '')
+            .toString();
+    final serverFunction =
+        (json['serverFunction'] ??
+                json['serverfunction'] ??
+                json['function'] ??
+                '')
+            .toString();
 
     return ServerModel(
       id: id,
-      title: title,
+      name: json['name'],
       subtitle: subtitle,
       description: description,
       category: category,
@@ -243,7 +242,7 @@ class ServerModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'title': title,
+      'name': name,
       if (subtitle != null) 'subtitle': subtitle,
       'description': description,
       'category': category,

@@ -56,7 +56,7 @@ class ServerState {
       if (searchQuery.isEmpty) return true;
 
       final query = searchQuery.toLowerCase();
-      final titleMatch = item.title.toLowerCase().contains(query);
+      final titleMatch = item.name.toLowerCase().contains(query);
       final subtitleMatch =
           item.subtitle?.toLowerCase().contains(query) ?? false;
       final descMatch = item.description.toLowerCase().contains(query);
@@ -64,10 +64,7 @@ class ServerState {
         (srv) => srv.toLowerCase().contains(query),
       );
 
-      return titleMatch ||
-          subtitleMatch ||
-          descMatch ||
-          serviceMatch;
+      return titleMatch || subtitleMatch || descMatch || serviceMatch;
     }).toList();
   }
 
@@ -92,7 +89,7 @@ class ServerNotifier extends StateNotifier<ServerState> {
   final IApiService? apiService;
 
   ServerNotifier({this.apiService})
-      : super(const ServerState(servers: [], isLoading: true)) {
+    : super(const ServerState(servers: [], isLoading: true)) {
     loadServersFromApi();
   }
 
@@ -105,8 +102,7 @@ class ServerNotifier extends StateNotifier<ServerState> {
     try {
       final fetched = await apiService!.fetchServers(
         query:
-            query ??
-            (state.searchQuery.isNotEmpty ? state.searchQuery : null),
+            query ?? (state.searchQuery.isNotEmpty ? state.searchQuery : null),
         category:
             category ??
             (state.selectedCategory != 'All' ? state.selectedCategory : null),
