@@ -37,7 +37,12 @@ abstract class IApiService {
     ProductType? type,
   });
   Future<List<ChatModel>> fetchChats();
-  Future<List<ChatMessage>> fetchChatMessages(String channelId);
+  Future<List<ChatMessage>> fetchUserChatMessages(String channelId);
+  Future<List<ChatMessage>> fetchServerChatMessages(
+    String channelId, {
+    String? serverId,
+    String? baseUrl,
+  });
   Future<List<FileItemModel>> fetchFiles({String? serverId});
   Future<List<GoalItemModel>> fetchServerGoals(String serverId);
   Future<List<TransactionItemModel>> fetchServerTransactions(String serverId);
@@ -392,9 +397,7 @@ class ApiService implements IApiService {
                 data['message'] ?? data['error'] ?? 'Join server failed';
             throw Exception(errMsg);
           }
-          if (topSuccess == true ||
-              topSuccess == 'true' ||
-              topStatus == 'ok') {
+          if (topSuccess == true || topSuccess == 'true' || topStatus == 'ok') {
             return true;
           }
         }
@@ -482,9 +485,7 @@ class ApiService implements IApiService {
                 data['message'] ?? data['error'] ?? 'Leave server failed';
             throw Exception(errMsg);
           }
-          if (topSuccess == true ||
-              topSuccess == 'true' ||
-              topStatus == 'ok') {
+          if (topSuccess == true || topSuccess == 'true' || topStatus == 'ok') {
             return true;
           }
         }
@@ -781,7 +782,7 @@ class ApiService implements IApiService {
   }
 
   @override
-  Future<List<ChatMessage>> fetchChatMessages(String channelId) async {
+  Future<List<ChatMessage>> fetchUserChatMessages(String channelId) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
     final token = await SharedPref.getEMKey() ?? AuthService.token;
@@ -839,6 +840,91 @@ class ApiService implements IApiService {
         stack,
         reason: 'ApiService.fetchChatMessages failed',
         customKeys: {'url': primaryUrl, 'channelId': channelId},
+      );
+    }
+    return [];
+  }
+
+  @override
+  Future<List<ChatMessage>> fetchServerChatMessages(
+    String channelId, {
+    String? serverId,
+    String? baseUrl,
+  }) async {
+    final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
+        ? (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl)
+        : _cleanBaseUrl;
+    if (cleanBase.isEmpty) return [];
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/chat/chat.json';
+
+    final queryParams = <String, dynamic>{
+      'channel': channelId,
+      if (serverId != null && serverId.isNotEmpty) 'serverid': serverId,
+    };
+
+    debugPrint(
+      '[ApiService] fetchServerChatMessages GET URL: $primaryUrl with params: $queryParams',
+    );
+    try {
+      final dio = _dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (token != null && token.isNotEmpty) ...{
+          'Authorization': 'Bearer $token',
+          'entermediakey': token,
+        },
+      };
+
+      Response response = await dio.get(
+        primaryUrl,
+        queryParameters: queryParams,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        '[ApiService] fetchServerChatMessages response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (_) {}
+      }
+
+      if (data is Map<String, dynamic>) {
+        final messagesList =
+            (data['messages'] as List<dynamic>?) ??
+            (data['data'] as List<dynamic>?) ??
+            (data['results'] as List<dynamic>?) ??
+            [];
+        return messagesList
+            .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else if (data is List<dynamic>) {
+        return data
+            .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] fetchServerChatMessages error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.fetchServerChatMessages failed',
+        customKeys: {
+          'url': primaryUrl,
+          'channelId': channelId,
+          'serverId': serverId ?? '',
+        },
       );
     }
     return [];

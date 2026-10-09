@@ -20,22 +20,24 @@ final apiServersProvider = FutureProvider<List<ServerModel>>((ref) async {
 });
 
 /// FutureProvider to fetch a single server by ID
-final serverDetailProvider =
-    FutureProvider.family<ServerModel?, String>((ref, id) async {
+final serverDetailProvider = FutureProvider.family<ServerModel?, String>((
+  ref,
+  id,
+) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchServerById(id);
 });
 
 /// FutureProvider to fetch specialist profiles from API
-final apiSpecialistProfilesProvider =
-    FutureProvider<List<EmeProfileModel>>((ref) async {
+final apiSpecialistProfilesProvider = FutureProvider<List<EmeProfileModel>>((
+  ref,
+) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchSpecialistProfiles();
 });
 
 /// FutureProvider to fetch users from /services/module/user/users.json
-final apiUsersProvider =
-    FutureProvider<List<EmeProfileModel>>((ref) async {
+final apiUsersProvider = FutureProvider<List<EmeProfileModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchUsers();
 });
@@ -49,12 +51,12 @@ final apiUserProfileProvider = FutureProvider<ProfileModel>((ref) async {
 /// FutureProvider to fetch products / services catalog from API
 final apiProductsProvider =
     FutureProvider.family<List<ProductMessageModel>, ProductType?>((
-  ref,
-  type,
-) async {
-  final api = ref.watch(apiServiceProvider);
-  return api.fetchProducts(type: type);
-});
+      ref,
+      type,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchProducts(type: type);
+    });
 
 /// FutureProvider to fetch chats from API
 final apiChatsProvider = FutureProvider<List<ChatModel>>((ref) async {
@@ -65,20 +67,31 @@ final apiChatsProvider = FutureProvider<List<ChatModel>>((ref) async {
 /// FutureProvider to fetch chat message history from API
 final apiChatMessagesProvider =
     FutureProvider.family<List<ChatMessage>, String>((ref, channelId) async {
-  final api = ref.watch(apiServiceProvider);
-  return api.fetchChatMessages(channelId);
-});
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchUserChatMessages(channelId);
+    });
+
+/// FutureProvider to fetch server chat message history from API
+final apiServerChatMessagesProvider =
+    FutureProvider.family<List<ChatMessage>, String>((ref, channelId) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchServerChatMessages(channelId);
+    });
 
 /// FutureProvider to fetch files from API
-final apiFilesProvider =
-    FutureProvider.family<List<FileItemModel>, String?>((ref, serverId) async {
+final apiFilesProvider = FutureProvider.family<List<FileItemModel>, String?>((
+  ref,
+  serverId,
+) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchFiles(serverId: serverId);
 });
 
 /// FutureProvider to fetch goals for a specific server from API
-final serverGoalsProvider =
-    FutureProvider.family<List<GoalItemModel>, String>((ref, serverId) async {
+final serverGoalsProvider = FutureProvider.family<List<GoalItemModel>, String>((
+  ref,
+  serverId,
+) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchServerGoals(serverId);
 });
@@ -86,16 +99,16 @@ final serverGoalsProvider =
 /// FutureProvider to fetch transactions / financial data for a specific server from API
 final serverTransactionsProvider =
     FutureProvider.family<List<TransactionItemModel>, String>((
-  ref,
-  serverId,
-) async {
-  final api = ref.watch(apiServiceProvider);
-  return api.fetchServerTransactions(serverId);
-});
+      ref,
+      serverId,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchServerTransactions(serverId);
+    });
 
 /// FutureProvider to fetch blog posts for a specific server from API
 final serverBlogPostsProvider =
     FutureProvider.family<List<BlogPostModel>, String>((ref, serverId) async {
-  final api = ref.watch(apiServiceProvider);
-  return api.fetchServerBlogPosts(serverId);
-});
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchServerBlogPosts(serverId);
+    });

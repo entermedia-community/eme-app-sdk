@@ -117,6 +117,80 @@ class ChatSocketService {
     }
   }
 
+  /// Make a POST request to /services/chat/connect.json with channel/serverid payload.
+  /// Returns the channel string or fallback.
+  Future<String> connectChat(String serverId) async {
+    final effectiveToken = _resolveToken();
+    final effectiveBase = _resolveHttpBaseUrl();
+    final effectiveUser = _resolveUserId();
+
+    final primaryUrl = '$effectiveBase/services/chat/connect.json';
+
+    final body = <String, dynamic>{
+      'serverid': serverId,
+      if (effectiveUser.isNotEmpty) 'fromuser': effectiveUser,
+      if (effectiveUser.isNotEmpty) 'user': effectiveUser,
+      'channeltype': 'emeteamchat',
+    };
+
+    debugPrint(
+      'ChatSocketService: connectChat POST to $primaryUrl with payload: $body',
+    );
+
+    try {
+      final dio = DioUtil.dio;
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+        'X-tokentype': 'entermedia',
+        if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
+          'Authorization': 'Bearer $effectiveToken',
+          'entermediakey': effectiveToken,
+        },
+      };
+
+      Response response = await dio.post(
+        primaryUrl,
+        data: body,
+        queryParameters: body,
+        options: Options(
+          headers: headers,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      debugPrint(
+        'ChatSocketService: connectChat response [${response.statusCode}]: ${response.data}',
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(data);
+        } catch (e) {
+          debugPrint('ChatSocketService: failed to decode JSON response: $e');
+        }
+      }
+
+      if (data is Map<String, dynamic>) {
+        final channelId = data['channel'];
+        if (channelId != null) {
+          return channelId.toString();
+        }
+      }
+      throw Exception('Failed to get channel from response');
+    } catch (e, stack) {
+      debugPrint('ChatSocketService: connectChat error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ChatSocketService.connectChat failed',
+        customKeys: {'serverId': serverId, 'url': primaryUrl},
+      );
+      rethrow;
+    }
+  }
+
   /// Connect to EnterMedia WebSocket Chat
   Future<void> connect({
     required String channel,
