@@ -150,24 +150,22 @@ class ServerNotifier extends StateNotifier<ServerState> {
       state = state.copyWith(isLoading: false);
       return;
     }
-    final effectiveQuery =
-        query ?? (state.searchQuery.isNotEmpty ? state.searchQuery : null);
-    final effectiveCategory =
-        category ??
-        (state.selectedCategory != 'All' && state.selectedCategory != 'all'
-            ? state.selectedCategory
-            : null);
+    final effectiveQuery = query ?? state.searchQuery;
+    final effectiveCategory = category ?? state.selectedCategory;
 
     state = state.copyWith(
       isLoading: true,
       error: null,
-      searchQuery: query ?? state.searchQuery,
-      selectedCategory: category ?? state.selectedCategory,
+      searchQuery: effectiveQuery,
+      selectedCategory: effectiveCategory,
     );
     try {
       final fetched = await apiService!.fetchServers(
-        query: effectiveQuery,
-        category: effectiveCategory,
+        query: effectiveQuery.isNotEmpty ? effectiveQuery : null,
+        category: (effectiveCategory.isNotEmpty &&
+                effectiveCategory.toLowerCase() != 'all')
+            ? effectiveCategory
+            : null,
       );
       state = state.copyWith(servers: fetched, isLoading: false);
     } catch (e) {
