@@ -1,3 +1,4 @@
+import 'package:eme_app_sdk/eme_app_sdk.dart';
 import 'package:flutter/material.dart';
 
 class ServerModel {
@@ -5,7 +6,7 @@ class ServerModel {
   final String name;
   final String? subtitle;
   final String description;
-  final String? category;
+  final ServerCategoryModel category;
   final Color primaryColor;
   final Color secondaryColor;
   final int memberCount;
@@ -29,8 +30,7 @@ class ServerModel {
     return id.substring(0, id.length.clamp(1, 2)).toUpperCase();
   }
 
-  String get categoryLabel =>
-      (category != null && category!.isNotEmpty) ? category! : 'General';
+  String get categoryLabel => category.name;
 
   const ServerModel({
     required this.id,
@@ -56,7 +56,7 @@ class ServerModel {
     String? name,
     String? subtitle,
     String? description,
-    String? category,
+    ServerCategoryModel? category,
     Color? primaryColor,
     Color? secondaryColor,
     int? memberCount,
@@ -99,8 +99,7 @@ class ServerModel {
                 json['details'] ??
                 '')
             .toString();
-    final category = (json['category'] ?? json['servercategory'] ?? '')
-        .toString();
+    final category = ServerCategoryModel.fromJson(json['category'] ?? {});
     final primaryColor = _parseColor(
       json['primaryColor'] ?? json['primarycolor'],
       const Color(0xFF2563EB),

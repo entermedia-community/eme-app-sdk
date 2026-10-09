@@ -48,7 +48,7 @@ class ServerState {
           selectedCategory == 'All' ||
           selectedCategory == 'all' ||
           selectedCategory.isEmpty ||
-          item.category == selectedCategory;
+          item.category.id == selectedCategory;
 
       if (!matchesCategory) return false;
 
@@ -127,9 +127,8 @@ class ServerNotifier extends StateNotifier<ServerState> {
     try {
       final fetched = await apiService!.fetchServerCategories();
       if (fetched.isNotEmpty) {
-        final categoriesWithAll = fetched.any(
-              (c) => c.id == 'all' || c.name.toLowerCase() == 'all',
-            )
+        final categoriesWithAll =
+            fetched.any((c) => c.id == 'all' || c.name.toLowerCase() == 'all')
             ? fetched
             : [ServerCategoryModel.all, ...fetched];
         await SharedPref.saveServerCategories(categoriesWithAll);
@@ -169,7 +168,8 @@ class ServerNotifier extends StateNotifier<ServerState> {
     try {
       final fetched = await apiService!.fetchServers(
         query: effectiveQuery.isNotEmpty ? effectiveQuery : null,
-        category: (effectiveCategory.isNotEmpty &&
+        category:
+            (effectiveCategory.isNotEmpty &&
                 effectiveCategory.toLowerCase() != 'all')
             ? effectiveCategory
             : null,
@@ -203,10 +203,7 @@ class ServerNotifier extends StateNotifier<ServerState> {
 
     // Set joining state to display spinner
     final updatedJoining = Set<String>.from(state.joiningServerIds)..add(id);
-    state = state.copyWith(
-      joiningServerIds: updatedJoining,
-      clearError: true,
-    );
+    state = state.copyWith(joiningServerIds: updatedJoining, clearError: true);
 
     if (apiService != null) {
       try {
@@ -214,7 +211,8 @@ class ServerNotifier extends StateNotifier<ServerState> {
             ? await apiService!.joinServer(id)
             : await apiService!.leaveServer(id);
 
-        final nextJoining = Set<String>.from(state.joiningServerIds)..remove(id);
+        final nextJoining = Set<String>.from(state.joiningServerIds)
+          ..remove(id);
         if (success) {
           final updated = state.servers.map((s) {
             if (s.id == id) {
@@ -237,15 +235,13 @@ class ServerNotifier extends StateNotifier<ServerState> {
           return false;
         }
       } catch (e) {
-        final nextJoining = Set<String>.from(state.joiningServerIds)..remove(id);
+        final nextJoining = Set<String>.from(state.joiningServerIds)
+          ..remove(id);
         var msg = e.toString();
         if (msg.startsWith('Exception: ')) {
           msg = msg.substring('Exception: '.length);
         }
-        state = state.copyWith(
-          joiningServerIds: nextJoining,
-          error: msg,
-        );
+        state = state.copyWith(joiningServerIds: nextJoining, error: msg);
         return false;
       }
     } else {
@@ -257,10 +253,7 @@ class ServerNotifier extends StateNotifier<ServerState> {
         }
         return s;
       }).toList();
-      state = state.copyWith(
-        servers: updated,
-        joiningServerIds: nextJoining,
-      );
+      state = state.copyWith(servers: updated, joiningServerIds: nextJoining);
       return true;
     }
   }
