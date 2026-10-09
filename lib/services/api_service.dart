@@ -347,6 +347,7 @@ class ApiService implements IApiService {
       final response = await dio.post(
         primaryUrl,
         queryParameters: {'serverid': serverId},
+        data: {'serverid': serverId},
         options: Options(
           headers: headers,
           sendTimeout: const Duration(seconds: 10),
@@ -361,14 +362,45 @@ class ApiService implements IApiService {
         } catch (_) {}
       }
 
-      if (response.statusCode == 200) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
         if (data is Map<String, dynamic>) {
           final resp = data['response'];
-          if (resp is Map<String, dynamic> && resp['status'] == 'error') {
-            return false;
+          if (resp is Map<String, dynamic>) {
+            final respSuccess = resp['success'];
+            final respStatus = resp['status']?.toString().toLowerCase();
+            if (respSuccess == false ||
+                respSuccess == 'false' ||
+                respStatus == 'error') {
+              final errMsg =
+                  resp['message'] ?? resp['error'] ?? 'Join server failed';
+              throw Exception(errMsg);
+            }
+            if (respSuccess == true ||
+                respSuccess == 'true' ||
+                respStatus == 'ok') {
+              return true;
+            }
+          }
+          final topSuccess = data['success'];
+          final topStatus = data['status']?.toString().toLowerCase();
+          if (topSuccess == false ||
+              topSuccess == 'false' ||
+              topStatus == 'error') {
+            final errMsg =
+                data['message'] ?? data['error'] ?? 'Join server failed';
+            throw Exception(errMsg);
+          }
+          if (topSuccess == true ||
+              topSuccess == 'true' ||
+              topStatus == 'ok') {
+            return true;
           }
         }
         return true;
+      } else {
+        throw Exception('Server returned status ${response.statusCode}');
       }
     } catch (e, stack) {
       debugPrint('[ApiService] joinServer error: $e');
@@ -378,8 +410,8 @@ class ApiService implements IApiService {
         reason: 'ApiService.joinServer failed',
         customKeys: {'url': primaryUrl, 'serverid': serverId},
       );
+      rethrow;
     }
-    return false;
   }
 
   @override
@@ -420,14 +452,45 @@ class ApiService implements IApiService {
         } catch (_) {}
       }
 
-      if (response.statusCode == 200) {
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
         if (data is Map<String, dynamic>) {
           final resp = data['response'];
-          if (resp is Map<String, dynamic> && resp['status'] == 'error') {
-            return false;
+          if (resp is Map<String, dynamic>) {
+            final respSuccess = resp['success'];
+            final respStatus = resp['status']?.toString().toLowerCase();
+            if (respSuccess == false ||
+                respSuccess == 'false' ||
+                respStatus == 'error') {
+              final errMsg =
+                  resp['message'] ?? resp['error'] ?? 'Leave server failed';
+              throw Exception(errMsg);
+            }
+            if (respSuccess == true ||
+                respSuccess == 'true' ||
+                respStatus == 'ok') {
+              return true;
+            }
+          }
+          final topSuccess = data['success'];
+          final topStatus = data['status']?.toString().toLowerCase();
+          if (topSuccess == false ||
+              topSuccess == 'false' ||
+              topStatus == 'error') {
+            final errMsg =
+                data['message'] ?? data['error'] ?? 'Leave server failed';
+            throw Exception(errMsg);
+          }
+          if (topSuccess == true ||
+              topSuccess == 'true' ||
+              topStatus == 'ok') {
+            return true;
           }
         }
         return true;
+      } else {
+        throw Exception('Server returned status ${response.statusCode}');
       }
     } catch (e, stack) {
       debugPrint('[ApiService] leaveServer error: $e');
@@ -437,8 +500,8 @@ class ApiService implements IApiService {
         reason: 'ApiService.leaveServer failed',
         customKeys: {'url': primaryUrl, 'serverid': serverId},
       );
+      rethrow;
     }
-    return false;
   }
 
   @override

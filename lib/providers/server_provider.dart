@@ -16,6 +16,7 @@ class ServerState {
   final String selectedCategory;
   final String searchQuery;
   final bool isLoading;
+  final Set<String> joiningServerIds;
   final String? error;
 
   const ServerState({
@@ -24,8 +25,11 @@ class ServerState {
     this.selectedCategory = 'All',
     this.searchQuery = '',
     this.isLoading = true,
+    this.joiningServerIds = const {},
     this.error,
   });
+
+  bool isJoining(String id) => joiningServerIds.contains(id);
 
   /// Servers that the user has already joined (for the Profile page)
   List<ServerModel> get joinedServers {
@@ -70,7 +74,9 @@ class ServerState {
     String? selectedCategory,
     String? searchQuery,
     bool? isLoading,
+    Set<String>? joiningServerIds,
     String? error,
+    bool clearError = false,
   }) {
     return ServerState(
       servers: servers ?? this.servers,
@@ -78,7 +84,8 @@ class ServerState {
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      joiningServerIds: joiningServerIds ?? this.joiningServerIds,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -185,48 +192,76 @@ class ServerNotifier extends StateNotifier<ServerState> {
     state = state.copyWith(servers: [server, ...state.servers]);
   }
 
-  Future<void> toggleJoin(String id) async {
+  Future<bool> toggleJoin(String id) async {
     final server = state.servers.cast<ServerModel?>().firstWhere(
       (s) => s?.id == id,
       orElse: () => null,
     );
-    if (server == null) return;
+    if (server == null) return false;
 
     final targetJoined = !server.isJoined;
-    // Optimistic update
-    final updated = state.servers.map((s) {
-      if (s.id == id) {
-        return s.copyWith(isJoined: targetJoined);
-      }
-      return s;
-    }).toList();
-    state = state.copyWith(servers: updated);
 
-    // Call backend API
+    // Set joining state to display spinner
+    final updatedJoining = Set<String>.from(state.joiningServerIds)..add(id);
+    state = state.copyWith(
+      joiningServerIds: updatedJoining,
+      clearError: true,
+    );
+
     if (apiService != null) {
       try {
         final success = targetJoined
             ? await apiService!.joinServer(id)
             : await apiService!.leaveServer(id);
-        if (!success) {
-          // Revert on failure
-          final reverted = state.servers.map((s) {
+
+        final nextJoining = Set<String>.from(state.joiningServerIds)..remove(id);
+        if (success) {
+          final updated = state.servers.map((s) {
             if (s.id == id) {
-              return s.copyWith(isJoined: !targetJoined);
+              return s.copyWith(isJoined: targetJoined);
             }
             return s;
           }).toList();
-          state = state.copyWith(servers: reverted);
+          state = state.copyWith(
+            servers: updated,
+            joiningServerIds: nextJoining,
+          );
+          return true;
+        } else {
+          state = state.copyWith(
+            joiningServerIds: nextJoining,
+            error: targetJoined
+                ? 'Failed to join server.'
+                : 'Failed to leave server.',
+          );
+          return false;
         }
       } catch (e) {
-        final reverted = state.servers.map((s) {
-          if (s.id == id) {
-            return s.copyWith(isJoined: !targetJoined);
-          }
-          return s;
-        }).toList();
-        state = state.copyWith(servers: reverted);
+        final nextJoining = Set<String>.from(state.joiningServerIds)..remove(id);
+        var msg = e.toString();
+        if (msg.startsWith('Exception: ')) {
+          msg = msg.substring('Exception: '.length);
+        }
+        state = state.copyWith(
+          joiningServerIds: nextJoining,
+          error: msg,
+        );
+        return false;
       }
+    } else {
+      // Local fallback if apiService is null
+      final nextJoining = Set<String>.from(state.joiningServerIds)..remove(id);
+      final updated = state.servers.map((s) {
+        if (s.id == id) {
+          return s.copyWith(isJoined: targetJoined);
+        }
+        return s;
+      }).toList();
+      state = state.copyWith(
+        servers: updated,
+        joiningServerIds: nextJoining,
+      );
+      return true;
     }
   }
 }

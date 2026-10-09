@@ -169,5 +169,83 @@ void main() {
       expect(lastPassedCategory, 'rental_gear');
       expect(lastPassedQuery, 'solar');
     });
+
+    test('joinServer throws on error response and toggleJoin captures error', () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path.contains('join.json')) {
+              final serverId = options.queryParameters['serverid'];
+              if (serverId == 'fail_srv') {
+                return handler.resolve(
+                  Response(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: {
+                      'response': {
+                        'status': 'error',
+                        'message': 'Failed to join: quota exceeded',
+                      },
+                    },
+                  ),
+                );
+              } else {
+                return handler.resolve(
+                  Response(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: {
+                      'response': {
+                        'status': 'ok',
+                      },
+                    },
+                  ),
+                );
+              }
+            }
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'emeservers': []},
+              ),
+            );
+          },
+        ),
+      );
+
+      final apiService = ApiService(dio: dio);
+      final notifier = ServerNotifier(apiService: apiService);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      notifier.addServer(const ServerModel(
+        id: 'fail_srv',
+        name: 'Fail Server',
+        description: 'Fail test description',
+        category: 'Test',
+        isJoined: false,
+      ));
+      notifier.addServer(const ServerModel(
+        id: 'ok_srv',
+        name: 'OK Server',
+        description: 'OK test description',
+        category: 'Test',
+        isJoined: false,
+      ));
+
+      // Test failure case
+      final failSuccess = await notifier.toggleJoin('fail_srv');
+      expect(failSuccess, false);
+      expect(notifier.state.error, 'Failed to join: quota exceeded');
+      expect(notifier.state.isJoining('fail_srv'), false);
+      expect(notifier.state.servers.firstWhere((s) => s.id == 'fail_srv').isJoined, false);
+
+      // Test success case
+      final okSuccess = await notifier.toggleJoin('ok_srv');
+      expect(okSuccess, true);
+      expect(notifier.state.isJoining('ok_srv'), false);
+      expect(notifier.state.servers.firstWhere((s) => s.id == 'ok_srv').isJoined, true);
+    });
   });
 }
