@@ -27,7 +27,7 @@ void main() {
     test('Server and Profile models instantiate properly', () {
       const server = ServerModel(
         id: 'srv_test',
-        name: 'Test Node',
+        name: 'Test Server',
         description: 'Test Description',
         category: ServerCategoryModel(
           id: 'software_tools',
@@ -37,7 +37,7 @@ void main() {
       expect(server.id, 'srv_test');
       expect(server.category.name, 'Software Tools');
       expect(server.categoryLabel, 'Software Tools');
-      expect(server.displayInitials, 'TN');
+      expect(server.displayInitials, 'TS');
 
       final serverJson = server.toJson();
       final fromJson = ServerModel.fromJson(serverJson);
