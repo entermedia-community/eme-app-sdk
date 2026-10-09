@@ -179,8 +179,7 @@ Dio createMockAuthDio() {
               },
             ),
           );
-        } else if (path.contains('joinemeserver.json') ||
-            path.contains('leaveemeserver.json')) {
+        } else if (path.contains('join.json') || path.contains('leave.json')) {
           return handler.resolve(
             Response(
               requestOptions: options,

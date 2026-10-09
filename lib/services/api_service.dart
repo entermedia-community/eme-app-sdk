@@ -115,7 +115,8 @@ class ApiService implements IApiService {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
     final token = await SharedPref.getEMKey() ?? AuthService.token;
-    final primaryUrl = '$cleanBase/services/module/emeserver/getemeservers.json';
+    final primaryUrl =
+        '$cleanBase/services/module/emeserver/getemeservers.json';
 
     final queryParams = <String, dynamic>{
       if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
@@ -160,10 +161,7 @@ class ApiService implements IApiService {
 
       List<dynamic>? serverList;
       if (data is Map<String, dynamic>) {
-        serverList = (data['emeservers'] ??
-                data['servers'] ??
-                data['results'] ??
-                data['data']) as List<dynamic>?;
+        serverList = data['emeservers'] as List<dynamic>?;
       } else if (data is List<dynamic>) {
         serverList = data;
       }
@@ -192,7 +190,9 @@ class ApiService implements IApiService {
     final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/emeserver/getemeserver.json';
 
-    debugPrint('[ApiService] fetchServerById GET URL: $primaryUrl?serverid=$id');
+    debugPrint(
+      '[ApiService] fetchServerById GET URL: $primaryUrl?serverid=$id',
+    );
     try {
       final dio = _dio;
       final headers = <String, dynamic>{
@@ -245,7 +245,7 @@ class ApiService implements IApiService {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty || serverId.isEmpty) return false;
     final token = await SharedPref.getEMKey() ?? AuthService.token;
-    final primaryUrl = '$cleanBase/services/module/emeserver/joinemeserver.json';
+    final primaryUrl = '$cleanBase/services/module/emeserver/join.json';
 
     debugPrint(
       '[ApiService] joinServer POST URL: $primaryUrl?serverid=$serverId',
@@ -304,8 +304,7 @@ class ApiService implements IApiService {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty || serverId.isEmpty) return false;
     final token = await SharedPref.getEMKey() ?? AuthService.token;
-    final primaryUrl =
-        '$cleanBase/services/module/emeserver/leaveemeserver.json';
+    final primaryUrl = '$cleanBase/services/module/emeserver/leave.json';
 
     debugPrint(
       '[ApiService] leaveServer POST URL: $primaryUrl?serverid=$serverId',
@@ -397,10 +396,12 @@ class ApiService implements IApiService {
 
       List<dynamic>? serverList;
       if (data is Map<String, dynamic>) {
-        serverList = (data['emeservers'] ??
-                data['servers'] ??
-                data['results'] ??
-                data['data']) as List<dynamic>?;
+        serverList =
+            (data['emeservers'] ??
+                    data['servers'] ??
+                    data['results'] ??
+                    data['data'])
+                as List<dynamic>?;
       } else if (data is List<dynamic>) {
         serverList = data;
       }
