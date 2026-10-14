@@ -232,11 +232,42 @@ enum MessageRenderType {
   }
 }
 
+class FormFieldOption {
+  final dynamic value;
+  final String label;
+
+  FormFieldOption({required this.value, required this.label});
+  factory FormFieldOption.fromJson(Map<String, dynamic> json) {
+    return FormFieldOption(value: json['value'], label: json['label']);
+  }
+}
+
+enum FormFieldType {
+  text,
+  number,
+  boolean,
+  select,
+  radio,
+  checkbox;
+
+  factory FormFieldType.fromName(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return FormFieldType.text;
+    }
+    final clean = name.toLowerCase().trim();
+    return FormFieldType.values.firstWhere(
+      (element) => element.name.toLowerCase() == clean,
+      orElse: () => FormFieldType.text,
+    );
+  }
+}
+
 class FormField {
   final String name;
-  final String type;
+  final FormFieldType type;
   final String label;
   final dynamic value;
+  final List<FormFieldOption> options;
   final bool? readOnly;
 
   FormField({
@@ -244,16 +275,29 @@ class FormField {
     required this.type,
     required this.label,
     this.value,
+    this.options = const [],
     this.readOnly = false,
   });
 
   factory FormField.fromJson(Map<String, dynamic> json) {
     final rawReadOnly = json['readOnly'] ?? json['readonly'];
+    final rawOptions = json['options'] ?? [];
+    List<FormFieldOption> options = [];
+    if (rawOptions is List) {
+      for (var item in rawOptions) {
+        if (item is Map) {
+          options.add(
+            FormFieldOption.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    }
     return FormField(
       name: (json['name'] ?? '').toString(),
-      type: (json['type'] ?? 'text').toString(),
+      type: FormFieldType.fromName(json['type']),
       label: (json['label'] ?? json['name'] ?? '').toString(),
       value: json['value'],
+      options: options,
       readOnly: rawReadOnly == true || rawReadOnly == 'true',
     );
   }
@@ -270,9 +314,10 @@ class FormField {
 
   FormField copyWith({
     String? name,
-    String? type,
+    FormFieldType? type,
     String? label,
     dynamic value,
+    List<FormFieldOption>? options,
     bool? readOnly,
   }) {
     return FormField(
@@ -280,6 +325,7 @@ class FormField {
       type: type ?? this.type,
       label: label ?? this.label,
       value: value ?? this.value,
+      options: options ?? this.options,
       readOnly: readOnly ?? this.readOnly,
     );
   }
@@ -345,9 +391,7 @@ class AgentContextValues {
     if (rawForm is List) {
       for (var item in rawForm) {
         if (item is Map) {
-          formFields.add(
-            FormField.fromJson(Map<String, dynamic>.from(item)),
-          );
+          formFields.add(FormField.fromJson(Map<String, dynamic>.from(item)));
         }
       }
     }
