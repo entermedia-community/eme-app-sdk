@@ -248,12 +248,13 @@ class FormField {
   });
 
   factory FormField.fromJson(Map<String, dynamic> json) {
+    final rawReadOnly = json['readOnly'] ?? json['readonly'];
     return FormField(
-      name: json['name'],
-      type: json['type'],
-      label: json['label'],
+      name: (json['name'] ?? '').toString(),
+      type: (json['type'] ?? 'text').toString(),
+      label: (json['label'] ?? json['name'] ?? '').toString(),
       value: json['value'],
-      readOnly: json['readOnly'],
+      readOnly: rawReadOnly == true || rawReadOnly == 'true',
     );
   }
 
@@ -312,7 +313,7 @@ class AgentContextValues {
         ?.toString()
         .toLowerCase();
 
-    final messageRenderType = MessageRenderType.fromName(rawMessageRenderType);
+    var messageRenderType = MessageRenderType.fromName(rawMessageRenderType);
 
     ProductMessageModel? product;
     if (json['product'] != null && json['product'] is Map<String, dynamic>) {
@@ -334,12 +335,27 @@ class AgentContextValues {
 
     List<FormField> formFields = [];
 
-    if (messageRenderType.isForm) {
-      if (json['form'] != null && json['form'] is List<Map<String, dynamic>>) {
-        formFields = (json['form'] as List<Map<String, dynamic>>)
-            .map((e) => FormField.fromJson(e))
-            .toList();
+    dynamic rawForm = json['form'];
+    if (rawForm is String && rawForm.trim().isNotEmpty) {
+      try {
+        rawForm = jsonDecode(rawForm);
+      } catch (_) {}
+    }
+
+    if (rawForm is List) {
+      for (var item in rawForm) {
+        if (item is Map) {
+          formFields.add(
+            FormField.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
       }
+    }
+
+    if (formFields.isNotEmpty &&
+        (messageRenderType == MessageRenderType.text ||
+            messageRenderType.isForm)) {
+      messageRenderType = MessageRenderType.form;
     }
 
     return AgentContextValues(
@@ -424,13 +440,13 @@ class ChatMessage {
     Map<String, dynamic> decodedContext = {};
     if (rawAgentContext != null &&
         rawAgentContext.toString().trim().isNotEmpty) {
-      if (rawAgentContext is Map<String, dynamic>) {
-        decodedContext = rawAgentContext;
+      if (rawAgentContext is Map) {
+        decodedContext = Map<String, dynamic>.from(rawAgentContext);
       } else {
         try {
           final decoded = jsonDecode(rawAgentContext.toString());
-          if (decoded is Map<String, dynamic>) {
-            decodedContext = decoded;
+          if (decoded is Map) {
+            decodedContext = Map<String, dynamic>.from(decoded);
           }
         } catch (e, stack) {
           debugPrint('Error decoding agentcontextvalues: $e');
@@ -442,6 +458,15 @@ class ChatMessage {
           );
         }
       }
+    }
+
+    // Support root-level form or messagerendertype if not present in agentcontextvalues
+    if (json['form'] != null && decodedContext['form'] == null) {
+      decodedContext['form'] = json['form'];
+    }
+    if (json['messagerendertype'] != null &&
+        decodedContext['messagerendertype'] == null) {
+      decodedContext['messagerendertype'] = json['messagerendertype'];
     }
     AgentContextValues agentContextValues = AgentContextValues.fromJson(
       decodedContext,

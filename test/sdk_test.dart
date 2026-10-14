@@ -89,6 +89,42 @@ void main() {
       expect(ChatModel.fromJson(chatJson).username, 'Alice');
     });
 
+    test('ChatMessage parses form with agentcontextvalues properly', () {
+      final rawJson = {
+        'messageid': 'msg_form_1',
+        'channel': 'ch_1',
+        'userid': 'bot_1',
+        'date': DateTime.now().toIso8601String(),
+        'agentcontextvalues': {
+          'messagerendertype': 'form',
+          'form': [
+            {
+              'type': 'text',
+              'name': 'name',
+              'label': 'Name',
+            },
+            {
+              'type': 'bool',
+              'name': 'agree',
+              'label': 'Agree to terms',
+              'value': true,
+              'readOnly': false,
+            }
+          ]
+        }
+      };
+
+      final msg = ChatMessage.fromJson(rawJson);
+      expect(msg.messageRenderType, MessageRenderType.form);
+      expect(msg.formFields.length, 2);
+      expect(msg.formFields[0].name, 'name');
+      expect(msg.formFields[0].label, 'Name');
+      expect(msg.formFields[0].type, 'text');
+      expect(msg.formFields[1].name, 'agree');
+      expect(msg.formFields[1].value, true);
+      expect(msg.formFields[1].readOnly, false);
+    });
+
     test(
       'Riverpod providers initialize correctly and searchUsers works',
       () async {
