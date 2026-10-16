@@ -119,7 +119,10 @@ class ChatSocketService {
 
   /// Make a POST request to /services/chat/connect.json with channel/serverid payload.
   /// Returns the channel string or fallback.
-  Future<String> connectChat(String serverId) async {
+  Future<String> connectChat(
+    String serverId, {
+    Map<String, dynamic>? params,
+  }) async {
     final effectiveToken = _resolveToken();
     final effectiveBase = _resolveHttpBaseUrl();
     final effectiveUser = _resolveUserId();
@@ -131,6 +134,7 @@ class ChatSocketService {
       if (effectiveUser.isNotEmpty) 'fromuser': effectiveUser,
       if (effectiveUser.isNotEmpty) 'user': effectiveUser,
       'channeltype': 'emeteamchat',
+      ...?params,
     };
 
     debugPrint(

@@ -238,7 +238,14 @@ class FormFieldOption {
 
   FormFieldOption({required this.value, required this.label});
   factory FormFieldOption.fromJson(Map<String, dynamic> json) {
-    return FormFieldOption(value: json['value'], label: json['label']);
+    return FormFieldOption(
+      value: json['value'],
+      label: (json['label'] ?? json['name'] ?? json['value'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'value': value, 'label': label};
   }
 }
 
@@ -289,6 +296,8 @@ class FormField {
           options.add(
             FormFieldOption.fromJson(Map<String, dynamic>.from(item)),
           );
+        } else if (item != null) {
+          options.add(FormFieldOption(value: item, label: item.toString()));
         }
       }
     }
@@ -305,9 +314,10 @@ class FormField {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'type': type,
+      'type': type.name,
       'label': label,
       'value': value,
+      'options': options.map((e) => e.toJson()).toList(),
       'readOnly': readOnly,
     };
   }
@@ -336,8 +346,6 @@ class AgentContextValues {
   final String? content;
   final Asset? asset;
   final ProductMessageModel? product;
-  final List<dynamic> deltaOps;
-  final List<FormField> formFields;
   bool? interactive = false;
 
   AgentContextValues({
@@ -345,8 +353,6 @@ class AgentContextValues {
     this.content,
     this.asset,
     this.product,
-    this.deltaOps = const [],
-    this.formFields = const [],
     this.interactive = false,
   });
 
@@ -368,20 +374,9 @@ class AgentContextValues {
       );
     }
 
-    List<dynamic> deltaOps = [];
-    if (messageRenderType.isDelta) {
-      String? deltaString = json['delta'] as String?;
-      if (deltaString != null && deltaString.isNotEmpty) {
-        Map<String, dynamic> jsonDelta = jsonDecode(deltaString);
-        if (jsonDelta['ops'] != null && jsonDelta['ops'] is List<dynamic>) {
-          deltaOps = jsonDelta['ops'] as List<dynamic>;
-        }
-      }
-    }
-
     List<FormField> formFields = [];
 
-    dynamic rawForm = json['form'];
+    dynamic rawForm = json['form'] ?? json['formfields'] ?? json['fields'];
     if (rawForm is String && rawForm.trim().isNotEmpty) {
       try {
         rawForm = jsonDecode(rawForm);
@@ -406,35 +401,11 @@ class AgentContextValues {
       messageRenderType: messageRenderType,
       asset: json['asset'] != null ? Asset.fromJson(json['asset']) : null,
       product: product,
-      deltaOps: deltaOps,
-      formFields: formFields,
       interactive:
           formFields.isNotEmpty ||
           json['interactive'] == "yes" ||
           json['interactive'] == true,
     );
-  }
-
-  String get text {
-    if (messageRenderType.isDelta) {
-      var textBuilder = StringBuffer();
-      for (var op in deltaOps) {
-        if (op is Map<String, dynamic> && op['insert'] is String) {
-          textBuilder.write(op['insert']);
-        }
-      }
-      return textBuilder.toString();
-    } else if (messageRenderType.isForm) {
-      if (formFields.isNotEmpty) {
-        final formBuilder = StringBuffer();
-        for (var field in formFields) {
-          formBuilder.write('${field.label}: ${field.value}\n');
-        }
-        return formBuilder.toString();
-      }
-    }
-
-    return content ?? "";
   }
 }
 
@@ -443,6 +414,8 @@ class ChatMessage {
   final String channel;
   final String userId;
   final String? message;
+  final List<dynamic> deltaOps;
+  final List<FormField> formFields;
   final String? command;
   final String? replyToId;
   final String? messageType;
@@ -458,10 +431,17 @@ class ChatMessage {
     this.command,
     this.replyToId,
     this.messageType = 'message',
+    List<dynamic>? deltaOps,
+    List<FormField>? formFields,
     required this.createdAt,
     this.agentContextValues,
     this.product,
-  });
+  }) : deltaOps = (deltaOps != null && deltaOps.isNotEmpty)
+           ? deltaOps
+           : (deltaOps ?? const []),
+       formFields = (formFields != null && formFields.isNotEmpty)
+           ? formFields
+           : (formFields ?? const []);
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     // parse date
@@ -512,6 +492,87 @@ class ChatMessage {
         decodedContext['messagerendertype'] == null) {
       decodedContext['messagerendertype'] = json['messagerendertype'];
     }
+
+    // Parse message field (which may be a JSON string containing ops, form key)
+    final rawMessage = json['message'];
+    String? messageString;
+    dynamic messageJson;
+
+    if (rawMessage is Map) {
+      messageJson = rawMessage;
+      try {
+        messageString = jsonEncode(rawMessage);
+      } catch (_) {
+        messageString = rawMessage.toString();
+      }
+    } else if (rawMessage != null) {
+      messageString = rawMessage.toString();
+      final trimmed = messageString.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          messageJson = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
+
+    List<dynamic> deltaOps = [];
+    List<FormField> formFields = [];
+
+    if (messageJson is Map) {
+      // 1. Check ops/delta in message JSON
+      dynamic rawOps = messageJson['ops'];
+      if (rawOps is List) {
+        deltaOps = List<dynamic>.from(rawOps);
+      } else if (messageJson['delta'] != null) {
+        dynamic rawDelta = messageJson['delta'];
+        if (rawDelta is Map && rawDelta['ops'] is List) {
+          deltaOps = List<dynamic>.from(rawDelta['ops']);
+        } else if (rawDelta is String && rawDelta.trim().isNotEmpty) {
+          try {
+            final decodedDelta = jsonDecode(rawDelta);
+            if (decodedDelta is Map && decodedDelta['ops'] is List) {
+              deltaOps = List<dynamic>.from(decodedDelta['ops']);
+            } else if (decodedDelta is List) {
+              deltaOps = List<dynamic>.from(decodedDelta);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 2. Check form in message JSON
+      dynamic rawForm =
+          messageJson['form'] ??
+          messageJson['formfields'] ??
+          messageJson['fields'];
+      if (rawForm is String && rawForm.trim().isNotEmpty) {
+        try {
+          rawForm = jsonDecode(rawForm);
+        } catch (_) {}
+      }
+      if (rawForm is List) {
+        for (var item in rawForm) {
+          if (item is Map) {
+            formFields.add(FormField.fromJson(Map<String, dynamic>.from(item)));
+          }
+        }
+      }
+    } else if (messageJson is List) {
+      if (messageJson.isNotEmpty &&
+          messageJson.first is Map &&
+          (messageJson.first as Map).containsKey('insert')) {
+        deltaOps = List<dynamic>.from(messageJson);
+      }
+    }
+
+    // Sync message json keys to decodedContext if not present
+    if (formFields.isNotEmpty && decodedContext['form'] == null) {
+      decodedContext['form'] = messageJson is Map ? messageJson['form'] : null;
+    }
+    if (deltaOps.isNotEmpty && decodedContext['delta'] == null) {
+      decodedContext['delta'] = jsonEncode({'ops': deltaOps});
+    }
+
     AgentContextValues agentContextValues = AgentContextValues.fromJson(
       decodedContext,
     );
@@ -538,10 +599,12 @@ class ChatMessage {
               .toString(),
       channel: (json['channel'] ?? '').toString(),
       userId: (json['user'] ?? json['userid'] ?? '').toString(),
-      message: json['message']?.toString() ?? '',
+      message: messageString ?? '',
       command: json['command']?.toString(),
       replyToId: (json['replytoid'] ?? json['replyToId'])?.toString(),
       messageType: rawMessageType,
+      deltaOps: deltaOps,
+      formFields: formFields,
       createdAt: parsedCreatedAt,
       agentContextValues: agentContextValues,
       product: parsedProduct,
@@ -549,11 +612,24 @@ class ChatMessage {
   }
 
   Map<String, dynamic> toJson() {
+    String? effectiveMessage = message;
+    if ((effectiveMessage == null || effectiveMessage.isEmpty) &&
+        (deltaOps.isNotEmpty || formFields.isNotEmpty)) {
+      final map = <String, dynamic>{};
+      if (deltaOps.isNotEmpty) {
+        map['ops'] = deltaOps;
+      }
+      if (formFields.isNotEmpty) {
+        map['form'] = formFields.map((e) => e.toJson()).toList();
+      }
+      effectiveMessage = jsonEncode(map);
+    }
+
     final map = <String, dynamic>{
       'messageid': messageId,
       'channel': channel,
       'userid': userId,
-      if (message != null) 'message': message,
+      'message': ?effectiveMessage,
       if (command != null) 'command': command,
       if (replyToId != null) 'replytoid': replyToId,
       if (messageType != null) 'messagetype': messageType,
@@ -567,8 +643,26 @@ class ChatMessage {
   bool get isKeepAlive => command == 'keepalive';
 
   String get text {
-    final textContent = agentContextValues?.text;
-    if (textContent != null && textContent.isNotEmpty) return textContent;
+    if (deltaOps.isNotEmpty) {
+      final textBuilder = StringBuffer();
+      for (var op in deltaOps) {
+        if (op is Map && op['insert'] is String) {
+          textBuilder.write(op['insert']);
+        }
+      }
+      final str = textBuilder.toString();
+      if (str.isNotEmpty) return str;
+    }
+
+    if (formFields.isNotEmpty) {
+      final formBuilder = StringBuffer();
+      for (var field in formFields) {
+        formBuilder.write('${field.label}: ${field.value}\n');
+      }
+      final str = formBuilder.toString();
+      if (str.isNotEmpty) return str;
+    }
+
     return message ?? '';
   }
 
@@ -585,14 +679,32 @@ class ChatMessage {
       agentContextValues ?? AgentContextValues();
 
   MessageRenderType get messageRenderType {
-    if (product != null || messageType == 'product') {
+    if (product != null ||
+        messageType == 'product' ||
+        agentContextValues?.product != null) {
       return MessageRenderType.product;
     }
-    if (contextValues.product != null) {
-      return MessageRenderType.product;
+    if (messageType == 'asset' ||
+        agentContextValues?.messageRenderType == MessageRenderType.asset) {
+      return MessageRenderType.asset;
     }
-    if (contextValues.messageRenderType != MessageRenderType.text) {
-      return contextValues.messageRenderType;
+    if (messageType == 'welcome' ||
+        agentContextValues?.messageRenderType == MessageRenderType.welcome) {
+      return MessageRenderType.welcome;
+    }
+    if (formFields.isNotEmpty ||
+        messageType == 'form' ||
+        agentContextValues?.messageRenderType == MessageRenderType.form) {
+      return MessageRenderType.form;
+    }
+    if (deltaOps.isNotEmpty ||
+        messageType == 'delta' ||
+        agentContextValues?.messageRenderType == MessageRenderType.delta) {
+      return MessageRenderType.delta;
+    }
+    if (agentContextValues != null &&
+        agentContextValues!.messageRenderType != MessageRenderType.text) {
+      return agentContextValues!.messageRenderType;
     }
     if (messageType != null && messageType != 'message') {
       return MessageRenderType.fromName(messageType);
@@ -601,10 +713,9 @@ class ChatMessage {
   }
 
   Asset? get asset => contextValues.asset;
-  List<dynamic> get deltaOps => contextValues.deltaOps;
-  List<FormField> get formFields => contextValues.formFields;
 
-  bool get interactive => contextValues.interactive ?? false;
+  bool get interactive =>
+      formFields.isNotEmpty || (contextValues.interactive ?? false);
   set interactive(bool newInteractive) {
     contextValues.interactive = newInteractive;
   }
@@ -617,6 +728,8 @@ class ChatMessage {
     String? command,
     String? replyToId,
     String? messageType,
+    List<dynamic>? deltaOps,
+    List<FormField>? formFields,
     DateTime? createdAt,
     AgentContextValues? agentContextValues,
     ProductMessageModel? product,
@@ -629,6 +742,8 @@ class ChatMessage {
       command: command ?? this.command,
       replyToId: replyToId ?? this.replyToId,
       messageType: messageType ?? this.messageType,
+      deltaOps: deltaOps ?? this.deltaOps,
+      formFields: formFields ?? this.formFields,
       createdAt: createdAt ?? this.createdAt,
       agentContextValues: agentContextValues ?? this.agentContextValues,
       product: product ?? this.product,

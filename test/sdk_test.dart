@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,31 +100,143 @@ void main() {
         'agentcontextvalues': {
           'messagerendertype': 'form',
           'form': [
-            {
-              'type': 'text',
-              'name': 'name',
-              'label': 'Name',
-            },
+            {'type': 'text', 'name': 'name', 'label': 'Name'},
             {
               'type': 'bool',
               'name': 'agree',
               'label': 'Agree to terms',
               'value': true,
               'readOnly': false,
-            }
-          ]
-        }
+            },
+            {
+              'type': 'select',
+              'name': 'role',
+              'label': 'Role',
+              'value': 'admin',
+              'options': [
+                {'value': 'admin', 'label': 'Administrator'},
+                {'value': 'user', 'label': 'Standard User'},
+              ],
+            },
+          ],
+        },
       };
 
       final msg = ChatMessage.fromJson(rawJson);
       expect(msg.messageRenderType, MessageRenderType.form);
-      expect(msg.formFields.length, 2);
+      expect(msg.formFields.length, 3);
       expect(msg.formFields[0].name, 'name');
       expect(msg.formFields[0].label, 'Name');
-      expect(msg.formFields[0].type, 'text');
+      expect(msg.formFields[0].type, FormFieldType.text);
       expect(msg.formFields[1].name, 'agree');
       expect(msg.formFields[1].value, true);
       expect(msg.formFields[1].readOnly, false);
+      expect(msg.formFields[2].name, 'role');
+      expect(msg.formFields[2].type, FormFieldType.select);
+      expect(msg.formFields[2].options.length, 2);
+      expect(msg.formFields[2].options[0].value, 'admin');
+      expect(msg.formFields[2].options[0].label, 'Administrator');
+      expect(msg.formFields[2].toJson()['options'].length, 2);
+    });
+
+    test(
+      'ChatMessage parses delta from message JSON string containing ops key',
+      () {
+        final rawJson = {
+          'messageid': 'msg_delta_1',
+          'channel': 'ch_1',
+          'userid': 'bot_1',
+          'date': DateTime.now().toIso8601String(),
+          'message': jsonEncode({
+            'ops': [
+              {'insert': 'Welcome to the server!\n'},
+              {
+                'attributes': {'bold': true},
+                'insert': 'How can I help you today?',
+              },
+            ],
+          }),
+        };
+
+        final msg = ChatMessage.fromJson(rawJson);
+        expect(msg.messageRenderType, MessageRenderType.delta);
+        expect(msg.deltaOps.length, 2);
+        expect(msg.deltaOps[0]['insert'], 'Welcome to the server!\n');
+        expect(msg.deltaOps[1]['attributes']['bold'], true);
+        expect(msg.text, 'Welcome to the server!\nHow can I help you today?');
+        expect(msg.formFields, isEmpty);
+      },
+    );
+
+    test(
+      'ChatMessage parses form from message JSON string containing form key',
+      () {
+        final rawJson = {
+          'messageid': 'msg_form_2',
+          'channel': 'ch_1',
+          'userid': 'bot_1',
+          'date': DateTime.now().toIso8601String(),
+          'message': jsonEncode({
+            'form': [
+              {'type': 'text', 'name': 'search_term', 'label': 'Search...'},
+              {
+                'type': 'select',
+                'name': 'category',
+                'label': 'Category',
+                'value': 'all',
+                'options': [
+                  {'value': 'all', 'label': 'All'},
+                  {'value': 'docs', 'label': 'Documents'},
+                ],
+              },
+            ],
+          }),
+        };
+
+        final msg = ChatMessage.fromJson(rawJson);
+        expect(msg.messageRenderType, MessageRenderType.form);
+        expect(msg.formFields.length, 2);
+        expect(msg.formFields[0].name, 'search_term');
+        expect(msg.formFields[0].type, FormFieldType.text);
+        expect(msg.formFields[1].name, 'category');
+        expect(msg.formFields[1].type, FormFieldType.select);
+        expect(msg.formFields[1].options.length, 2);
+        expect(msg.interactive, true);
+      },
+    );
+
+    test('ChatMessage parses both ops and form from message JSON string', () {
+      final rawJson = {
+        'messageid': 'msg_combo_1',
+        'channel': 'ch_1',
+        'userid': 'bot_1',
+        'date': DateTime.now().toIso8601String(),
+        'message': jsonEncode({
+          'ops': [
+            {
+              'attributes': {'header': 3},
+              'insert': 'Search Media',
+            },
+            {'insert': '\n'},
+          ],
+          'formAttr': {'action': '/search', 'method': 'post'},
+          'form': [
+            {'type': 'text', 'name': 'context_query', 'label': 'Search...'},
+          ],
+        }),
+      };
+
+      final msg = ChatMessage.fromJson(rawJson);
+      expect(msg.messageRenderType, MessageRenderType.form);
+      expect(msg.deltaOps.length, 2);
+      expect(msg.formFields.length, 1);
+      expect(msg.formFields.first.name, 'context_query');
+      expect(msg.text, 'Search Media\n');
+
+      final copied = msg.copyWith(userId: 'other_user');
+      expect(copied.userId, 'other_user');
+      expect(copied.deltaOps.length, 2);
+      expect(copied.formFields.length, 1);
     });
 
     test(
