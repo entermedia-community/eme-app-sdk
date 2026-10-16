@@ -5,6 +5,7 @@ export 'em_logo.dart';
 export 'em_user.dart';
 export 'eme_profile_model.dart';
 export 'file_item_model.dart';
+export 'form_model.dart';
 export 'goal_model.dart';
 export 'mcp_chat_message.dart';
 export 'mcp_conversation_model.dart';
