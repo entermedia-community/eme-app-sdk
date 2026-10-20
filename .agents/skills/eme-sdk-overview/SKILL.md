@@ -43,7 +43,9 @@ add an `export` to the matching barrel** (`models/models.dart`, `providers/provi
   `formFields` (`FormField`/`FormFieldType` in `form_model.dart`), `product`
   (`ProductMessageModel`), `agentContextValues`. See the `eme-sdk-chat-messages` skill.
 - `McpServerModel`, `McpChatMessage`, `McpConversationModel` — user-added MCP servers and their chats.
-- `UnifiedChatItem` — wraps either a user chat or an MCP conversation for the combined Chats list.
+- `UnifiedChatItem` — one row of the combined Chats list: a user chat (`fromUser`), an MCP
+  conversation (`fromMcp`) or a joined EME Server (`fromServer`, `isServer`, `emeServer`). Adding a
+  `ChatItemType` means updating every getter in `unified_chat_item.dart` and the app's chat list.
 - `EmUser` (auth user), `ProfileModel`, `EmeProfileModel` (people/specialists in "EME World").
 
 ## Providers (Riverpod 2, `StateNotifier` style)
@@ -53,7 +55,10 @@ add an `export` to the matching barrel** (`models/models.dart`, `providers/provi
   `apiChatsProvider`, `apiChatMessagesProvider(channelId)`, `apiServerChatMessagesProvider(channelId)`,
   `serverGoalsProvider(serverId)`, etc.
 - `serverProvider` (`ServerNotifier`/`ServerState`): server list, categories, search, `toggleJoin`.
-- `mcpServersProvider`, `mcpConversationsProvider`, `unifiedChatsProvider` (merges user chats + MCP chats).
+- `userServersProvider` (`fetchUserServers` → `getuseremeservers.json`): the servers the user has
+  joined. The app invalidates it after join/leave.
+- `mcpServersProvider`, `mcpConversationsProvider`, `unifiedChatsProvider` (merges user chats +
+  MCP chats + joined EME Servers).
 - `authProvider`, `emeProfileProvider`, `profileProvider`, `notificationProvider`, `deepLinkProvider`.
 
 ## How a request is made
@@ -82,6 +87,14 @@ Main EnterMedia endpoints (relative to mediadb):
 
 The socket is a **singleton** — only one channel is active at a time. Screens must filter
 `messageStream` by `channel` and cancel their subscription in `dispose`.
+
+## Search (backend gap)
+
+The app's Search (`UnifiedSearchScreen`) shows people and servers together with shared category
+pills, but the backend has no combined search yet. It calls `emeProfileProvider.searchUsers` and
+`serverProvider.loadServersFromApi(query:, category:)` separately and merges. A combined search
+endpoint + one shared category list should be added here (see `eme-sdk-add-api-endpoint`), then
+only that screen needs rewiring.
 
 ## Rules that apply here (from AGENTS.md)
 
