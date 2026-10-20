@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../openinsitute_core.dart';
 import '../utils/dio.dart';
 import '../utils/error_handler.dart';
+import 'chat_cache_manager.dart';
 import 'shared_preferences.dart';
 
 /// Configuration for the API Service
@@ -724,6 +725,7 @@ class ApiService implements IApiService {
   Future<List<ChatModel>> fetchChats() async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
+    final cacheKey = ChatCacheManager.chatListKey(cleanBase);
     final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/user/chats.json';
 
@@ -753,22 +755,34 @@ class ApiService implements IApiService {
       );
 
       dynamic data = response.data;
+      String? rawJsonString;
       if (data is String && data.trim().isNotEmpty) {
+        rawJsonString = data;
         try {
           data = jsonDecode(data);
         } catch (_) {}
+      } else if (data != null) {
+        try {
+          rawJsonString = jsonEncode(data);
+        } catch (_) {}
       }
 
+      List<ChatModel> result = [];
       if (data is Map<String, dynamic>) {
         final chatsList = (data['chats'] as List<dynamic>?) ?? [];
-        return chatsList
+        result = chatsList
             .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
             .toList();
       } else if (data is List<dynamic>) {
-        return data
+        result = data
             .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
             .toList();
       }
+
+      if (rawJsonString != null) {
+        unawaited(ChatCacheManager.putJson(cacheKey, rawJsonString));
+      }
+      return result;
     } catch (e, stack) {
       debugPrint('[ApiService] fetchChats network error: $e');
       AppErrorHandler.recordNonFatal(
@@ -777,6 +791,24 @@ class ApiService implements IApiService {
         reason: 'ApiService.fetchChats failed',
         customKeys: {'url': primaryUrl},
       );
+
+      // Attempt to load from cache
+      final cachedJson = await ChatCacheManager.getJson(cacheKey);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedJson);
+          if (decoded is Map<String, dynamic>) {
+            final chatsList = (decoded['chats'] as List<dynamic>?) ?? [];
+            return chatsList
+                .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
+                .toList();
+          } else if (decoded is List<dynamic>) {
+            return decoded
+                .map((item) => ChatModel.fromJson(item as Map<String, dynamic>))
+                .toList();
+          }
+        } catch (_) {}
+      }
     }
     return [];
   }
@@ -785,6 +817,7 @@ class ApiService implements IApiService {
   Future<List<ChatMessage>> fetchUserChatMessages(String channelId) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
+    final cacheKey = ChatCacheManager.userChatHistoryKey(cleanBase, channelId);
     final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/user/chat.json';
 
@@ -817,22 +850,34 @@ class ApiService implements IApiService {
       );
 
       dynamic data = response.data;
+      String? rawJsonString;
       if (data is String && data.trim().isNotEmpty) {
+        rawJsonString = data;
         try {
           data = jsonDecode(data);
         } catch (_) {}
+      } else if (data != null) {
+        try {
+          rawJsonString = jsonEncode(data);
+        } catch (_) {}
       }
 
+      List<ChatMessage> result = [];
       if (data is Map<String, dynamic>) {
         final messagesList = (data['messages'] as List<dynamic>?) ?? [];
-        return messagesList
+        result = messagesList
             .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
             .toList();
       } else if (data is List<dynamic>) {
-        return data
+        result = data
             .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
             .toList();
       }
+
+      if (rawJsonString != null) {
+        unawaited(ChatCacheManager.putJson(cacheKey, rawJsonString));
+      }
+      return result;
     } catch (e, stack) {
       debugPrint('[ApiService] fetchChatMessages error: $e');
       AppErrorHandler.recordNonFatal(
@@ -841,6 +886,30 @@ class ApiService implements IApiService {
         reason: 'ApiService.fetchChatMessages failed',
         customKeys: {'url': primaryUrl, 'channelId': channelId},
       );
+
+      // Attempt to load from cache
+      final cachedJson = await ChatCacheManager.getJson(cacheKey);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedJson);
+          if (decoded is Map<String, dynamic>) {
+            final messagesList = (decoded['messages'] as List<dynamic>?) ?? [];
+            return messagesList
+                .map(
+                  (item) =>
+                      ChatMessage.fromJson(item as Map<String, dynamic>),
+                )
+                .toList();
+          } else if (decoded is List<dynamic>) {
+            return decoded
+                .map(
+                  (item) =>
+                      ChatMessage.fromJson(item as Map<String, dynamic>),
+                )
+                .toList();
+          }
+        } catch (_) {}
+      }
     }
     return [];
   }
@@ -857,6 +926,11 @@ class ApiService implements IApiService {
               : baseUrl)
         : _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
+    final cacheKey = ChatCacheManager.serverChatHistoryKey(
+      cleanBase,
+      channelId,
+      serverId: serverId,
+    );
     final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/chat/chat.json';
 
@@ -894,26 +968,38 @@ class ApiService implements IApiService {
       );
 
       dynamic data = response.data;
+      String? rawJsonString;
       if (data is String && data.trim().isNotEmpty) {
+        rawJsonString = data;
         try {
           data = jsonDecode(data);
         } catch (_) {}
+      } else if (data != null) {
+        try {
+          rawJsonString = jsonEncode(data);
+        } catch (_) {}
       }
 
+      List<ChatMessage> result = [];
       if (data is Map<String, dynamic>) {
         final messagesList =
             (data['messages'] as List<dynamic>?) ??
             (data['data'] as List<dynamic>?) ??
             (data['results'] as List<dynamic>?) ??
             [];
-        return messagesList
+        result = messagesList
             .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
             .toList();
       } else if (data is List<dynamic>) {
-        return data
+        result = data
             .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
             .toList();
       }
+
+      if (rawJsonString != null) {
+        unawaited(ChatCacheManager.putJson(cacheKey, rawJsonString));
+      }
+      return result;
     } catch (e, stack) {
       debugPrint('[ApiService] fetchServerChatMessages error: $e');
       AppErrorHandler.recordNonFatal(
@@ -926,6 +1012,26 @@ class ApiService implements IApiService {
           'serverId': serverId ?? '',
         },
       );
+
+      // Attempt to load from cache
+      final cachedJson = await ChatCacheManager.getJson(cacheKey);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedJson);
+          final messagesList = (decoded is Map<String, dynamic>)
+              ? ((decoded['messages'] as List<dynamic>?) ??
+                  (decoded['data'] as List<dynamic>?) ??
+                  (decoded['results'] as List<dynamic>?) ??
+                  [])
+              : (decoded is List<dynamic> ? decoded : []);
+          return messagesList
+              .map(
+                (item) =>
+                    ChatMessage.fromJson(item as Map<String, dynamic>),
+              )
+              .toList();
+        } catch (_) {}
+      }
     }
     return [];
   }
