@@ -58,6 +58,13 @@ final apiProductsProvider =
       return api.fetchProducts(type: type);
     });
 
+/// FutureProvider for the EME Servers the signed-in user has joined.
+/// Invalidate it after joining or leaving a server.
+final userServersProvider = FutureProvider<List<ServerModel>>((ref) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchUserServers();
+});
+
 /// FutureProvider to fetch chats from API
 final apiChatsProvider = FutureProvider<List<ChatModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);

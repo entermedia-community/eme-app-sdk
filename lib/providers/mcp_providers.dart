@@ -357,6 +357,9 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
   final userChatsAsync = ref.watch(apiChatsProvider);
   final mcpServers = ref.watch(mcpServersProvider);
   final mcpConversations = ref.watch(mcpConversationsProvider);
+  // Joined EME Servers are listed once loaded; a failed load leaves them out
+  // without hiding the user's chats.
+  final joinedServers = ref.watch(userServersProvider).valueOrNull ?? const [];
 
   List<UnifiedChatItem> buildMcpItems() {
     final List<UnifiedChatItem> items = [];
@@ -397,6 +400,11 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
       // Add user chats
       for (final userChat in userChats) {
         combined.add(UnifiedChatItem.fromUser(userChat));
+      }
+
+      // Add joined EME Servers
+      for (final server in joinedServers) {
+        combined.add(UnifiedChatItem.fromServer(server));
       }
 
       // Sort with latest message on top

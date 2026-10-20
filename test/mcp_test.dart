@@ -120,6 +120,22 @@ void main() {
       expect(mcpItem.isMcp, true);
       expect(mcpItem.isUser, false);
       expect(mcpItem.displayName, 'EnterMedia MCP');
+
+      const server = ServerModel(
+        id: 'eme_1',
+        name: 'Lakeview Stays',
+        description: 'House rentals',
+        category: ServerCategoryModel(id: 'rental_gear', name: 'Rental & Gear'),
+        isJoined: true,
+      );
+      final serverItem = UnifiedChatItem.fromServer(server);
+      expect(serverItem.isServer, true);
+      expect(serverItem.isMcp, false);
+      expect(serverItem.isUser, false);
+      expect(serverItem.id, 'server_eme_1');
+      expect(serverItem.displayName, 'Lakeview Stays');
+      expect(serverItem.subtitle, 'Rental & Gear');
+      expect(serverItem.lastMessage, 'House rentals');
     });
   });
 
