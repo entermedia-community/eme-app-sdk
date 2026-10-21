@@ -99,8 +99,6 @@ class SharedPref {
 
   static Future<void> resetValues() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    //Remove entermediakey
-    prefs.remove("entermediakey");
     //Remove workspacekey
     prefs.remove("workspacekey");
     //Remove most recent workspace ID
@@ -110,9 +108,12 @@ class SharedPref {
   }
 
   static const String _categoriesCacheKey = 'eme_server_categories_cache';
-  static const String _categoriesTimestampKey = 'eme_server_categories_last_fetch';
+  static const String _categoriesTimestampKey =
+      'eme_server_categories_last_fetch';
 
-  static Future<void> saveServerCategories(List<ServerCategoryModel> categories) async {
+  static Future<void> saveServerCategories(
+    List<ServerCategoryModel> categories,
+  ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final jsonList = categories.map((c) => jsonEncode(c.toJson())).toList();
     await prefs.setStringList(_categoriesCacheKey, jsonList);
@@ -128,7 +129,11 @@ class SharedPref {
     if (list == null) return null;
     try {
       return list
-          .map((item) => ServerCategoryModel.fromJson(jsonDecode(item) as Map<String, dynamic>))
+          .map(
+            (item) => ServerCategoryModel.fromJson(
+              jsonDecode(item) as Map<String, dynamic>,
+            ),
+          )
           .toList();
     } catch (_) {
       return null;

@@ -56,8 +56,6 @@ Dio createMockAuthDio() {
               statusCode: 200,
               data: {
                 'response': {'status': 'ok'},
-                'entermediakey':
-                    'mock_token_${DateTime.now().millisecondsSinceEpoch}',
                 'user': {
                   'username': 'usr_${email.split('@').first}',
                   'email': email,
@@ -320,7 +318,6 @@ void main() {
 
       final loginJson = {
         'response': {'status': 'ok', 'user': 'usr_99'},
-        'entermediakey': 'token_xyz123',
         'user': {
           'username': 'usr_99',
           'firstname': 'Jane',

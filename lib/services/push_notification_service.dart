@@ -21,7 +21,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (e) {
     debugPrint('[PushNotificationService] Background Firebase init: $e');
   }
-  debugPrint('[PushNotificationService] Background message received: ${message.messageId} | ${message.data}');
+  debugPrint(
+    '[PushNotificationService] Background message received: ${message.messageId} | ${message.data}',
+  );
 }
 
 /// Parsed Notification Payload for EME Apps
@@ -55,7 +57,10 @@ class PushNotificationMessage {
     return PushNotificationMessage(
       messageId: message.messageId,
       title: notification?.title ?? data['title']?.toString(),
-      body: notification?.body ?? data['body']?.toString() ?? data['message']?.toString(),
+      body:
+          notification?.body ??
+          data['body']?.toString() ??
+          data['message']?.toString(),
       data: data,
       type: data['type']?.toString() ?? data['action']?.toString(),
       channelId: data['channel']?.toString() ?? data['channelId']?.toString(),
@@ -76,10 +81,21 @@ class PushNotificationMessage {
       body: json['body']?.toString() ?? json['message']?.toString(),
       data: data,
       type: json['type']?.toString() ?? data['type']?.toString(),
-      channelId: json['channel']?.toString() ?? data['channelId']?.toString() ?? data['channel']?.toString(),
-      serverId: json['server']?.toString() ?? data['serverId']?.toString() ?? data['server']?.toString(),
-      userId: json['user']?.toString() ?? data['userId']?.toString() ?? data['user']?.toString(),
-      sentTime: json['sentTime'] != null ? DateTime.tryParse(json['sentTime'].toString()) : null,
+      channelId:
+          json['channel']?.toString() ??
+          data['channelId']?.toString() ??
+          data['channel']?.toString(),
+      serverId:
+          json['server']?.toString() ??
+          data['serverId']?.toString() ??
+          data['server']?.toString(),
+      userId:
+          json['user']?.toString() ??
+          data['userId']?.toString() ??
+          data['user']?.toString(),
+      sentTime: json['sentTime'] != null
+          ? DateTime.tryParse(json['sentTime'].toString())
+          : null,
     );
   }
 
@@ -98,34 +114,40 @@ class PushNotificationMessage {
   }
 
   @override
-  String toString() => 'PushNotificationMessage(title: $title, body: $body, type: $type, data: $data)';
+  String toString() =>
+      'PushNotificationMessage(title: $title, body: $body, type: $type, data: $data)';
 }
 
 /// Core Push Notification Service for Firebase Cloud Messaging
 class PushNotificationService {
-  static final PushNotificationService instance = PushNotificationService._internal();
+  static final PushNotificationService instance =
+      PushNotificationService._internal();
 
   PushNotificationService._internal();
 
   factory PushNotificationService() => instance;
 
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   final StreamController<PushNotificationMessage> _onMessageController =
       StreamController<PushNotificationMessage>.broadcast();
-  final StreamController<PushNotificationMessage> _onMessageOpenedAppController =
+  final StreamController<PushNotificationMessage>
+  _onMessageOpenedAppController =
       StreamController<PushNotificationMessage>.broadcast();
 
   bool _isInitialized = false;
   String? _fcmToken;
   String _channelId = 'eme_high_importance_channel';
   String _channelName = 'EME Notifications';
-  String _channelDescription = 'Notifications for chats, updates, and activities';
+  String _channelDescription =
+      'Notifications for chats, updates, and activities';
 
   /// Streams
   Stream<PushNotificationMessage> get onMessage => _onMessageController.stream;
-  Stream<PushNotificationMessage> get onMessageOpenedApp => _onMessageOpenedAppController.stream;
+  Stream<PushNotificationMessage> get onMessageOpenedApp =>
+      _onMessageOpenedAppController.stream;
   Stream<String> get onTokenRefresh => _messaging.onTokenRefresh;
 
   String? get currentToken => _fcmToken;
@@ -147,7 +169,9 @@ class PushNotificationService {
 
     if (defaultChannelId != null) _channelId = defaultChannelId;
     if (defaultChannelName != null) _channelName = defaultChannelName;
-    if (defaultChannelDescription != null) _channelDescription = defaultChannelDescription;
+    if (defaultChannelDescription != null) {
+      _channelDescription = defaultChannelDescription;
+    }
     if (onNotificationTap != null) onNotificationTapped = onNotificationTap;
 
     try {
@@ -184,7 +208,9 @@ class PushNotificationService {
       // 7. Setup App Opened from Background Notification Listener
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         final pushMsg = PushNotificationMessage.fromRemoteMessage(message);
-        debugPrint('[PushNotificationService] Message opened from background: ${pushMsg.title}');
+        debugPrint(
+          '[PushNotificationService] Message opened from background: ${pushMsg.title}',
+        );
         _onMessageOpenedAppController.add(pushMsg);
         if (onNotificationTapped != null) {
           onNotificationTapped!(pushMsg);
@@ -194,8 +220,12 @@ class PushNotificationService {
       // 8. Check Initial Terminated Notification
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
-        final pushMsg = PushNotificationMessage.fromRemoteMessage(initialMessage);
-        debugPrint('[PushNotificationService] Message opened from terminated: ${pushMsg.title}');
+        final pushMsg = PushNotificationMessage.fromRemoteMessage(
+          initialMessage,
+        );
+        debugPrint(
+          '[PushNotificationService] Message opened from terminated: ${pushMsg.title}',
+        );
         _onMessageOpenedAppController.add(pushMsg);
         if (onNotificationTapped != null) {
           Future.microtask(() => onNotificationTapped!(pushMsg));
@@ -213,7 +243,9 @@ class PushNotificationService {
       });
 
       _isInitialized = true;
-      debugPrint('[PushNotificationService] Initialized successfully. Token: $_fcmToken');
+      debugPrint(
+        '[PushNotificationService] Initialized successfully. Token: $_fcmToken',
+      );
       return true;
     } catch (e, stack) {
       debugPrint('[PushNotificationService] Initialization warning/error: $e');
@@ -228,13 +260,17 @@ class PushNotificationService {
 
   /// Initialize flutter_local_notifications for foreground display
   Future<void> _initLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/launcher_icon',
+    );
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    const linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open');
+    const linuxSettings = LinuxInitializationSettings(
+      defaultActionName: 'Open',
+    );
 
     const initSettings = InitializationSettings(
       android: androidSettings,
@@ -255,7 +291,9 @@ class PushNotificationService {
               onNotificationTapped!(pushMsg);
             }
           } catch (e) {
-            debugPrint('[PushNotificationService] Error parsing notification payload: $e');
+            debugPrint(
+              '[PushNotificationService] Error parsing notification payload: $e',
+            );
           }
         }
       },
@@ -272,8 +310,10 @@ class PushNotificationService {
         enableVibration: true,
       );
 
-      final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await androidPlugin?.createNotificationChannel(androidChannel);
     }
   }
@@ -291,8 +331,10 @@ class PushNotificationService {
     );
 
     if (!kIsWeb && Platform.isAndroid) {
-      final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await androidPlugin?.requestNotificationsPermission();
     }
 
@@ -334,7 +376,9 @@ class PushNotificationService {
       await _messaging.subscribeToTopic(cleanTopic);
       debugPrint('[PushNotificationService] Subscribed to topic: $cleanTopic');
     } catch (e) {
-      debugPrint('[PushNotificationService] Failed to subscribe to topic $topic: $e');
+      debugPrint(
+        '[PushNotificationService] Failed to subscribe to topic $topic: $e',
+      );
     }
   }
 
@@ -343,16 +387,22 @@ class PushNotificationService {
     try {
       final cleanTopic = topic.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]'), '_');
       await _messaging.unsubscribeFromTopic(cleanTopic);
-      debugPrint('[PushNotificationService] Unsubscribed from topic: $cleanTopic');
+      debugPrint(
+        '[PushNotificationService] Unsubscribed from topic: $cleanTopic',
+      );
     } catch (e) {
-      debugPrint('[PushNotificationService] Failed to unsubscribe from topic $topic: $e');
+      debugPrint(
+        '[PushNotificationService] Failed to unsubscribe from topic $topic: $e',
+      );
     }
   }
 
   /// Handle incoming foreground messages and show local banner
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final pushMsg = PushNotificationMessage.fromRemoteMessage(message);
-    debugPrint('[PushNotificationService] Foreground message received: ${pushMsg.title} - ${pushMsg.body}');
+    debugPrint(
+      '[PushNotificationService] Foreground message received: ${pushMsg.title} - ${pushMsg.body}',
+    );
 
     _onMessageController.add(pushMsg);
 
@@ -389,10 +439,7 @@ class PushNotificationService {
       priority: Priority.high,
       showWhen: true,
       icon: '@mipmap/launcher_icon',
-      styleInformation: BigTextStyleInformation(
-        body,
-        contentTitle: title,
-      ),
+      styleInformation: BigTextStyleInformation(body, contentTitle: title),
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -435,7 +482,11 @@ class PushNotificationService {
       final dio = DioUtil.dio;
       final payload = {
         'token': fcm,
-        'platform': kIsWeb ? 'web' : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'desktop')),
+        'platform': kIsWeb
+            ? 'web'
+            : (Platform.isAndroid
+                  ? 'android'
+                  : (Platform.isIOS ? 'ios' : 'desktop')),
         ...?extraData,
       };
 
@@ -448,7 +499,6 @@ class PushNotificationService {
             'X-tokentype': 'entermedia',
             if (userToken != null && userToken.isNotEmpty) ...{
               'Authorization': 'Bearer $userToken',
-              'entermediakey': userToken,
             },
           },
           sendTimeout: const Duration(seconds: 8),
@@ -456,10 +506,14 @@ class PushNotificationService {
         ),
       );
 
-      debugPrint('[PushNotificationService] Token registered with backend: ${response.statusCode}');
+      debugPrint(
+        '[PushNotificationService] Token registered with backend: ${response.statusCode}',
+      );
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('[PushNotificationService] Failed to register token with backend: $e');
+      debugPrint(
+        '[PushNotificationService] Failed to register token with backend: $e',
+      );
       return false;
     }
   }

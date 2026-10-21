@@ -73,7 +73,6 @@ class ChatSocketService {
         'X-tokentype': 'entermedia',
         if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
           'Authorization': 'Bearer $effectiveToken',
-          'entermediakey': effectiveToken,
         },
       };
 
@@ -148,7 +147,6 @@ class ChatSocketService {
         'X-tokentype': 'entermedia',
         if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
           'Authorization': 'Bearer $effectiveToken',
-          'entermediakey': effectiveToken,
         },
       };
 

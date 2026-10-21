@@ -186,7 +186,6 @@ class AuthService implements IAuthService {
       final result = LoginResult.fromJson(jsonMap);
 
       if (result.isSuccess && result.token != null) {
-        await SharedPref.saveEMKey(result.token!);
         currentToken = result.token;
         if (result.user != null) {
           await SharedPref.saveEmUser(result.user!);
@@ -227,7 +226,7 @@ class AuthService implements IAuthService {
 
     debugPrint('[AuthService] checkAuthSession POST URL: $url');
     debugPrint(
-      '[AuthService] checkAuthSession Headers: Authorization Bearer $token, entermediakey: $token',
+      '[AuthService] checkAuthSession Headers: Authorization Bearer $token',
     );
 
     try {
@@ -238,7 +237,6 @@ class AuthService implements IAuthService {
             'Content-Type': 'application/json',
             'X-tokentype': 'entermedia',
             'Authorization': 'Bearer $token',
-            'entermediakey': token,
           },
           sendTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 8),
@@ -330,7 +328,6 @@ class AuthService implements IAuthService {
             'X-tokentype': 'entermedia',
             if (token != null && token.isNotEmpty)
               'Authorization': 'Bearer $token',
-            if (token != null && token.isNotEmpty) 'entermediakey': token,
           },
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
@@ -402,7 +399,6 @@ class AuthService implements IAuthService {
             'X-tokentype': 'entermedia',
             if (token != null && token.isNotEmpty)
               'Authorization': 'Bearer $token',
-            if (token != null && token.isNotEmpty) 'entermediakey': token,
           },
           sendTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 15),

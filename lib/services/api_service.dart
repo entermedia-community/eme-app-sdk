@@ -141,7 +141,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -205,7 +204,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -289,7 +287,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -346,7 +343,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -435,7 +431,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -522,7 +517,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -595,7 +589,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -737,7 +730,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -831,7 +823,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -896,15 +887,13 @@ class ApiService implements IApiService {
             final messagesList = (decoded['messages'] as List<dynamic>?) ?? [];
             return messagesList
                 .map(
-                  (item) =>
-                      ChatMessage.fromJson(item as Map<String, dynamic>),
+                  (item) => ChatMessage.fromJson(item as Map<String, dynamic>),
                 )
                 .toList();
           } else if (decoded is List<dynamic>) {
             return decoded
                 .map(
-                  (item) =>
-                      ChatMessage.fromJson(item as Map<String, dynamic>),
+                  (item) => ChatMessage.fromJson(item as Map<String, dynamic>),
                 )
                 .toList();
           }
@@ -949,7 +938,6 @@ class ApiService implements IApiService {
         'X-tokentype': 'entermedia',
         if (token != null && token.isNotEmpty) ...{
           'Authorization': 'Bearer $token',
-          'entermediakey': token,
         },
       };
 
@@ -1020,15 +1008,12 @@ class ApiService implements IApiService {
           final decoded = jsonDecode(cachedJson);
           final messagesList = (decoded is Map<String, dynamic>)
               ? ((decoded['messages'] as List<dynamic>?) ??
-                  (decoded['data'] as List<dynamic>?) ??
-                  (decoded['results'] as List<dynamic>?) ??
-                  [])
+                    (decoded['data'] as List<dynamic>?) ??
+                    (decoded['results'] as List<dynamic>?) ??
+                    [])
               : (decoded is List<dynamic> ? decoded : []);
           return messagesList
-              .map(
-                (item) =>
-                    ChatMessage.fromJson(item as Map<String, dynamic>),
-              )
+              .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
               .toList();
         } catch (_) {}
       }
