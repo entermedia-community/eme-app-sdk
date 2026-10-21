@@ -7,6 +7,8 @@ import '../utils/error_handler.dart';
 import 'form_model.dart';
 import 'product_message_model.dart';
 
+enum ChatType { users, servers, mcp }
+
 /// Conversation / Thread Model representing chat items in list views
 class ChatModel {
   final String? channelId;
@@ -19,6 +21,7 @@ class ChatModel {
   final bool isOnline;
   final String? avatarInitials;
   final String? avatarUrl;
+  final ChatType type;
 
   const ChatModel({
     this.channelId,
@@ -31,6 +34,7 @@ class ChatModel {
     this.isOnline = false,
     this.avatarInitials,
     this.avatarUrl,
+    this.type = ChatType.users,
   });
 
   ChatModel copyWith({
@@ -44,6 +48,7 @@ class ChatModel {
     bool? isOnline,
     String? avatarInitials,
     String? avatarUrl,
+    ChatType? type,
   }) {
     return ChatModel(
       channelId: channelId ?? this.channelId,
@@ -56,6 +61,7 @@ class ChatModel {
       isOnline: isOnline ?? this.isOnline,
       avatarInitials: avatarInitials ?? this.avatarInitials,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      type: type ?? this.type,
     );
   }
 
@@ -110,6 +116,7 @@ class ChatModel {
       isOnline: json['isOnline'] as bool? ?? false,
       avatarInitials: initials,
       avatarUrl: portrait,
+      type: ChatType.users,
     );
   }
 
@@ -201,6 +208,7 @@ class ChatModel {
       'isOnline': isOnline,
       if (avatarInitials != null) 'avatarInitials': avatarInitials,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      'type': type.name,
     };
   }
 }
