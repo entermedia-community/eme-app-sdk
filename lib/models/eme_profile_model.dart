@@ -129,11 +129,7 @@ class EmeProfileModel {
       name: name,
       specialistTitle: email,
       subtitle: emUser.screenname?.toString() ?? email,
-      description:
-          properties['description']?.toString() ??
-          (email != null && email.isNotEmpty
-              ? 'Contact: $email'
-              : 'EME Verified Member'),
+      description: properties['description']?.toString() ?? "",
       category: ProfileCategory.softwareTools,
       tags: email != null && email.isNotEmpty ? [email] : const ['EME Member'],
       iconData: Icons.person_rounded,
@@ -162,8 +158,7 @@ class EmeProfileModel {
                 json['role'] ??
                 json['title'])
             ?.toString();
-    final rawDesc = (json['description'] ?? json['bio'] ?? rawEmail ?? '')
-        .toString();
+    final rawDesc = (json['description'] ?? json['bio'] ?? '').toString();
     final rawLocation = (json['location'] ?? json['city'] ?? json['country'])
         ?.toString();
 
@@ -187,11 +182,7 @@ class EmeProfileModel {
           rawTitle ??
           (rawEmail != null && rawEmail.isNotEmpty ? rawEmail : null),
       subtitle: rawEmail,
-      description: rawDesc.isNotEmpty
-          ? rawDesc
-          : (rawEmail != null && rawEmail.isNotEmpty
-                ? 'Contact: $rawEmail'
-                : 'EME Verified Member'),
+      description: rawDesc.isNotEmpty ? rawDesc : '',
       category: category,
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
