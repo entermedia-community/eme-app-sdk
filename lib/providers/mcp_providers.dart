@@ -39,7 +39,10 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
     final client = _ref.read(mcpClientServiceProvider);
     final connectedServer = await client.connectAndDiscover(newServer);
 
-    final updated = [...state.where((s) => s.id != connectedServer.id), connectedServer];
+    final updated = [
+      ...state.where((s) => s.id != connectedServer.id),
+      connectedServer,
+    ];
     state = updated;
     await McpStorageService.saveServers(updated);
 
@@ -55,7 +58,9 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
     final updated = state.map((s) => s.id == server.id ? server : s).toList();
     state = updated;
     await McpStorageService.saveServers(updated);
-    _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(server);
+    _ref
+        .read(mcpConversationsProvider.notifier)
+        .updateServerInConversation(server);
   }
 
   /// Delete an MCP server and its conversation history
@@ -88,7 +93,9 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
     await McpStorageService.saveServers(updated);
 
     // Also update server inside conversation model
-    _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(refreshed);
+    _ref
+        .read(mcpConversationsProvider.notifier)
+        .updateServerInConversation(refreshed);
   }
 
   /// Reload tools for an MCP server by querying tools/list or reconnecting
@@ -128,7 +135,9 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
     final updated = state.map((s) => s.id == serverId ? refreshed : s).toList();
     state = updated;
     await McpStorageService.saveServers(updated);
-    _ref.read(mcpConversationsProvider.notifier).updateServerInConversation(refreshed);
+    _ref
+        .read(mcpConversationsProvider.notifier)
+        .updateServerInConversation(refreshed);
 
     if (tools.isEmpty && errorDetail != null) {
       throw Exception(errorDetail);
@@ -140,17 +149,20 @@ class McpServersNotifier extends StateNotifier<List<McpServerModel>> {
 
 final mcpServersProvider =
     StateNotifierProvider<McpServersNotifier, List<McpServerModel>>((ref) {
-  return McpServersNotifier(ref);
-});
+      return McpServersNotifier(ref);
+    });
 
 /// StateNotifier managing MCP conversation threads
-class McpConversationsNotifier extends StateNotifier<List<McpConversationModel>> {
+class McpConversationsNotifier
+    extends StateNotifier<List<McpConversationModel>> {
   final Ref _ref;
 
   McpConversationsNotifier(this._ref) : super([]);
 
   /// Load or create conversation for a server
-  Future<McpConversationModel> loadConversationForServer(McpServerModel server) async {
+  Future<McpConversationModel> loadConversationForServer(
+    McpServerModel server,
+  ) async {
     final existingIndex = state.indexWhere((c) => c.serverId == server.id);
     if (existingIndex != -1) {
       return state[existingIndex];
@@ -348,9 +360,11 @@ class McpConversationsNotifier extends StateNotifier<List<McpConversationModel>>
 }
 
 final mcpConversationsProvider =
-    StateNotifierProvider<McpConversationsNotifier, List<McpConversationModel>>((ref) {
-  return McpConversationsNotifier(ref);
-});
+    StateNotifierProvider<McpConversationsNotifier, List<McpConversationModel>>(
+      (ref) {
+        return McpConversationsNotifier(ref);
+      },
+    );
 
 /// Unified Chats Provider merging user chats with MCP server conversations
 final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
@@ -402,9 +416,17 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
         combined.add(UnifiedChatItem.fromUser(userChat));
       }
 
-      // Add joined EME Servers
+      // Add joined EME Servers and Projects
       for (final server in joinedServers) {
-        combined.add(UnifiedChatItem.fromServer(server));
+        final isProj =
+            server.category.name.trim().toLowerCase() == 'project' ||
+            server.category.id.trim().toLowerCase() == 'project' ||
+            server.serverFunction.trim().toLowerCase() == 'project';
+        if (isProj) {
+          combined.add(UnifiedChatItem.fromProject(server: server));
+        } else {
+          combined.add(UnifiedChatItem.fromServer(server));
+        }
       }
 
       // Sort with latest message on top

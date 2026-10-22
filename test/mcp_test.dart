@@ -136,100 +136,130 @@ void main() {
       expect(serverItem.displayName, 'Lakeview Stays');
       expect(serverItem.subtitle, 'Rental & Gear');
       expect(serverItem.lastMessage, 'House rentals');
+
+      const projectServer = ServerModel(
+        id: 'proj_1',
+        name: 'Mobile App Redesign',
+        description: 'Redesign of mobile application',
+        category: ServerCategoryModel(id: 'project', name: 'Project'),
+        isJoined: true,
+      );
+      final projectItem = UnifiedChatItem.fromProject(server: projectServer);
+      expect(projectItem.isProject, true);
+      expect(projectItem.isServer, false);
+      expect(projectItem.isUser, false);
+      expect(projectItem.isMcp, false);
+      expect(projectItem.id, 'project_proj_1');
+      expect(projectItem.displayName, 'Mobile App Redesign');
+      expect(projectItem.lastMessage, 'Redesign of mobile application');
     });
   });
 
   group('McpClientService Tests', () {
-    test('McpClientService fails transparently on unreachable endpoints and returns assistant help', () async {
-      final client = McpClientService();
-      final server = McpServerModel(
-        id: 'srv_weather',
-        name: 'Weather MCP',
-        url: 'https://weather-mcp.invalid/sse',
-        tools: const [
-          McpToolDefinition(
-            name: 'get_weather_forecast',
-            description: 'Get weather for a city',
-            inputSchema: {
-              'type': 'object',
-              'properties': {'city': {'type': 'string'}},
-              'required': ['city'],
-            },
-          ),
-        ],
-        createdAt: DateTime.now(),
-      );
-
-      // 1. Tool call against unreachable endpoint should fail transparently, not fake a simulation
-      final toolResult = await client.callTool(
-        server: server,
-        toolName: 'get_weather_forecast',
-        arguments: {'city': 'Tokyo'},
-      );
-
-      expect(toolResult.isSuccess, false);
-      expect(toolResult.errorMessage, isNotNull);
-
-      // 2. Natural language user prompt should return assistant message listing available tools
-      final assistantMsg = await client.processUserMessage(
-        server: server,
-        userText: 'What is the weather in Paris?',
-      );
-
-      expect(assistantMsg.role, McpMessageRole.assistant);
-      expect(assistantMsg.content, contains('Connected to **Weather MCP**'));
-      expect(assistantMsg.content, contains('get_weather_forecast'));
-    });
-  });
-
-  group('Mcp Riverpod Providers State Tests', () {
-    test('McpServersNotifier and McpConversationsNotifier manage state and execution', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      final notifier = container.read(mcpServersProvider.notifier);
-      final server = await notifier.addServer(
-        McpServerModel(
-          id: 'test_srv_custom',
-          name: 'Custom Test MCP',
-          url: 'https://test-mcp.cloud/sse',
+    test(
+      'McpClientService fails transparently on unreachable endpoints and returns assistant help',
+      () async {
+        final client = McpClientService();
+        final server = McpServerModel(
+          id: 'srv_weather',
+          name: 'Weather MCP',
+          url: 'https://weather-mcp.invalid/sse',
           tools: const [
             McpToolDefinition(
-              name: 'test_query_tool',
-              description: 'Test query tool',
-              inputSchema: {'type': 'object'},
+              name: 'get_weather_forecast',
+              description: 'Get weather for a city',
+              inputSchema: {
+                'type': 'object',
+                'properties': {
+                  'city': {'type': 'string'},
+                },
+                'required': ['city'],
+              },
             ),
           ],
           createdAt: DateTime.now(),
-        ),
-      );
+        );
 
-      final servers = container.read(mcpServersProvider);
-      expect(servers.isNotEmpty, true);
-      final firstServer = server;
-      expect(firstServer.tools.isNotEmpty, true);
+        // 1. Tool call against unreachable endpoint should fail transparently, not fake a simulation
+        final toolResult = await client.callTool(
+          server: server,
+          toolName: 'get_weather_forecast',
+          arguments: {'city': 'Tokyo'},
+        );
 
-      // Send a message
-      await container.read(mcpConversationsProvider.notifier).sendMessage(
-            serverId: firstServer.id,
-            text: 'Hello MCP server!',
-          );
+        expect(toolResult.isSuccess, false);
+        expect(toolResult.errorMessage, isNotNull);
 
-      final conversations = container.read(mcpConversationsProvider);
-      final activeConv = conversations.firstWhere((c) => c.serverId == firstServer.id);
-      expect(activeConv.messages.length >= 2, true);
-      expect(activeConv.messages.any((m) => m.role == McpMessageRole.user), true);
+        // 2. Natural language user prompt should return assistant message listing available tools
+        final assistantMsg = await client.processUserMessage(
+          server: server,
+          userText: 'What is the weather in Paris?',
+        );
 
-      // Execute a tool directly
-      final tool = firstServer.tools.first;
-      final toolResultMsg = await container.read(mcpConversationsProvider.notifier).executeTool(
-            serverId: firstServer.id,
-            toolName: tool.name,
-            arguments: {'query': 'test query'},
-          );
+        expect(assistantMsg.role, McpMessageRole.assistant);
+        expect(assistantMsg.content, contains('Connected to **Weather MCP**'));
+        expect(assistantMsg.content, contains('get_weather_forecast'));
+      },
+    );
+  });
 
-      expect(toolResultMsg.role, McpMessageRole.toolResult);
-      expect(toolResultMsg.toolName, tool.name);
-    });
+  group('Mcp Riverpod Providers State Tests', () {
+    test(
+      'McpServersNotifier and McpConversationsNotifier manage state and execution',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(mcpServersProvider.notifier);
+        final server = await notifier.addServer(
+          McpServerModel(
+            id: 'test_srv_custom',
+            name: 'Custom Test MCP',
+            url: 'https://test-mcp.cloud/sse',
+            tools: const [
+              McpToolDefinition(
+                name: 'test_query_tool',
+                description: 'Test query tool',
+                inputSchema: {'type': 'object'},
+              ),
+            ],
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        final servers = container.read(mcpServersProvider);
+        expect(servers.isNotEmpty, true);
+        final firstServer = server;
+        expect(firstServer.tools.isNotEmpty, true);
+
+        // Send a message
+        await container
+            .read(mcpConversationsProvider.notifier)
+            .sendMessage(serverId: firstServer.id, text: 'Hello MCP server!');
+
+        final conversations = container.read(mcpConversationsProvider);
+        final activeConv = conversations.firstWhere(
+          (c) => c.serverId == firstServer.id,
+        );
+        expect(activeConv.messages.length >= 2, true);
+        expect(
+          activeConv.messages.any((m) => m.role == McpMessageRole.user),
+          true,
+        );
+
+        // Execute a tool directly
+        final tool = firstServer.tools.first;
+        final toolResultMsg = await container
+            .read(mcpConversationsProvider.notifier)
+            .executeTool(
+              serverId: firstServer.id,
+              toolName: tool.name,
+              arguments: {'query': 'test query'},
+            );
+
+        expect(toolResultMsg.role, McpMessageRole.toolResult);
+        expect(toolResultMsg.toolName, tool.name);
+      },
+    );
   });
 }

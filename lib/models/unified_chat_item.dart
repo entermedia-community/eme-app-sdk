@@ -1,46 +1,62 @@
 import 'package:flutter/material.dart';
 import 'chat_model.dart';
+import 'library_collection_model.dart';
 import 'mcp_conversation_model.dart';
 import 'mcp_server_model.dart';
 import 'server_model.dart';
 
-enum ChatItemType {
-  user,
-  mcp,
-  server,
-}
+enum ChatItemType { user, mcp, server, project }
 
 /// A unified wrapper model for a row in the Chats list: a User Chat, an MCP
-/// Server Chat, or a joined EME Server.
+/// Server Chat, a joined EME Server, or a Project.
 class UnifiedChatItem {
   final ChatItemType type;
   final ChatModel? userChat;
   final McpConversationModel? mcpConversation;
   final ServerModel? emeServer;
+  final LibraryCollectionModel? projectCollection;
 
   const UnifiedChatItem.fromUser(ChatModel chat)
-      : type = ChatItemType.user,
-        userChat = chat,
-        mcpConversation = null,
-        emeServer = null;
+    : type = ChatItemType.user,
+      userChat = chat,
+      mcpConversation = null,
+      emeServer = null,
+      projectCollection = null;
 
   const UnifiedChatItem.fromMcp(McpConversationModel conversation)
-      : type = ChatItemType.mcp,
-        userChat = null,
-        mcpConversation = conversation,
-        emeServer = null;
+    : type = ChatItemType.mcp,
+      userChat = null,
+      mcpConversation = conversation,
+      emeServer = null,
+      projectCollection = null;
 
   const UnifiedChatItem.fromServer(ServerModel server)
-      : type = ChatItemType.server,
-        userChat = null,
-        mcpConversation = null,
-        emeServer = server;
+    : type = ChatItemType.server,
+      userChat = null,
+      mcpConversation = null,
+      emeServer = server,
+      projectCollection = null;
+
+  const UnifiedChatItem.fromProject({
+    required ServerModel server,
+    LibraryCollectionModel? collection,
+  }) : type = ChatItemType.project,
+       userChat = null,
+       mcpConversation = null,
+       emeServer = server,
+       projectCollection = collection;
 
   bool get isMcp => type == ChatItemType.mcp;
   bool get isUser => type == ChatItemType.user;
   bool get isServer => type == ChatItemType.server;
+  bool get isProject => type == ChatItemType.project;
 
   String get id {
+    if (isProject) {
+      return projectCollection != null
+          ? 'project_${projectCollection!.id}'
+          : 'project_${emeServer!.id}';
+    }
     if (isServer) return 'server_${emeServer!.id}';
     return isMcp
         ? mcpConversation!.id
@@ -48,16 +64,36 @@ class UnifiedChatItem {
   }
 
   String get displayName {
+    if (isProject) {
+      if (projectCollection != null && projectCollection!.name.isNotEmpty) {
+        return projectCollection!.name;
+      }
+      return emeServer?.name ?? 'Project';
+    }
     if (isServer) return emeServer!.name;
     return isMcp ? mcpConversation!.server.name : userChat!.displayName;
   }
 
   String get subtitle {
+    if (isProject) {
+      final status = projectCollection?.projectStatus;
+      if (status != null && status.isNotEmpty) return status;
+      return emeServer?.subtitle ?? emeServer?.category.name ?? 'Project';
+    }
     if (isServer) return emeServer!.subtitle ?? emeServer!.category.name;
     return isMcp ? mcpConversation!.server.url : userChat!.username;
   }
 
   String get lastMessage {
+    if (isProject) {
+      if (projectCollection != null) {
+        return projectCollection!.displayDescription;
+      }
+      final note = emeServer?.lastNotification;
+      return note != null && note.isNotEmpty
+          ? note
+          : (emeServer?.description ?? '');
+    }
     if (isServer) {
       final note = emeServer!.lastNotification;
       return note != null && note.isNotEmpty ? note : emeServer!.description;
@@ -73,6 +109,9 @@ class UnifiedChatItem {
   }
 
   String get time {
+    if (isProject) {
+      return emeServer?.lastNotificationTime ?? '';
+    }
     if (isServer) return emeServer!.lastNotificationTime ?? '';
     if (isMcp) {
       return ChatModel.formatChatDate(mcpConversation!.lastMessageTime);
@@ -81,8 +120,8 @@ class UnifiedChatItem {
   }
 
   DateTime get timestamp {
-    // Servers have no last-message time; keep them below active chats.
-    if (isServer) return DateTime.fromMillisecondsSinceEpoch(0);
+    // Projects and servers have no real-time last-message socket yet; keep below active chats
+    if (isProject || isServer) return DateTime.fromMillisecondsSinceEpoch(0);
     if (isMcp) {
       return mcpConversation!.lastMessageTime;
     }
@@ -91,16 +130,31 @@ class UnifiedChatItem {
   }
 
   int get unreadCount {
-    if (isServer) return 0;
+    if (isProject || isServer) return 0;
     return isMcp ? mcpConversation!.unreadCount : userChat!.unreadCount;
   }
 
   Color get avatarColor {
+    if (isProject) {
+      return emeServer?.primaryColor ?? const Color(0xFF3B82F6);
+    }
     if (isServer) return emeServer!.primaryColor;
     return isMcp ? mcpConversation!.server.color : userChat!.avatarColor;
   }
 
   String get avatarInitials {
+    if (isProject) {
+      if (projectCollection != null && projectCollection!.name.isNotEmpty) {
+        final words = projectCollection!.name.trim().split(RegExp(r'\s+'));
+        if (words.length >= 2 && words[0].isNotEmpty && words[1].isNotEmpty) {
+          return (words[0][0] + words[1][0]).toUpperCase();
+        }
+        return projectCollection!.name
+            .substring(0, projectCollection!.name.length.clamp(1, 2))
+            .toUpperCase();
+      }
+      return emeServer?.displayInitials ?? 'PR';
+    }
     if (isServer) return emeServer!.displayInitials;
     return isMcp
         ? mcpConversation!.server.displayInitials
@@ -108,12 +162,15 @@ class UnifiedChatItem {
   }
 
   String? get avatarUrl {
+    if (isProject) {
+      return projectCollection?.primaryImageUrl ?? emeServer?.avatarUrl;
+    }
     if (isServer) return emeServer!.avatarUrl;
     return isMcp ? null : userChat!.avatarUrl;
   }
 
   bool get isOnline {
-    if (isServer) return false;
+    if (isProject || isServer) return false;
     return isMcp
         ? mcpConversation!.server.status == McpServerStatus.connected
         : userChat!.isOnline;
