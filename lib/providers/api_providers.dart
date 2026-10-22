@@ -65,6 +65,48 @@ final userServersProvider = FutureProvider<List<ServerModel>>((ref) async {
   return api.fetchUserServers();
 });
 
+/// Key for [projectCollectionProvider]: the collection id and the mediadb
+/// it lives on (empty for the app's own mediadb).
+typedef ProjectCollectionKey = ({String collectionId, String baseUrl});
+
+/// FutureProvider for a project's details and team
+/// (`librarycollection/data/{id}`).
+final projectCollectionProvider =
+    FutureProvider.family<LibraryCollectionModel, ProjectCollectionKey>((
+      ref,
+      key,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchProjectCollection(key.collectionId, baseUrl: key.baseUrl);
+    });
+
+/// FutureProvider for the projects the signed-in user is on the team of.
+final userProjectsProvider = FutureProvider<List<LibraryCollectionModel>>((
+  ref,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchUserProjects();
+});
+
+/// FutureProvider for a project's team chat channel and the user's edit
+/// permission, keyed by collection id.
+final projectChatConnectionProvider =
+    FutureProvider.family<ProjectChatConnection, String>((
+      ref,
+      collectionId,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.connectProjectChat(collectionId);
+    });
+
+/// FutureProvider for the roles a project team member can have.
+final projectTeamRolesProvider = FutureProvider<List<ProjectTeamRole>>((
+  ref,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchTeamRoles();
+});
+
 /// FutureProvider to fetch chats from API
 final apiChatsProvider = FutureProvider<List<ChatModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);

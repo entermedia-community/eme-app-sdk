@@ -374,6 +374,8 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
   // Joined EME Servers are listed once loaded; a failed load leaves them out
   // without hiding the user's chats.
   final joinedServers = ref.watch(userServersProvider).valueOrNull ?? const [];
+  // Same for the projects the user is on the team of.
+  final projects = ref.watch(userProjectsProvider).valueOrNull ?? const [];
 
   List<UnifiedChatItem> buildMcpItems() {
     final List<UnifiedChatItem> items = [];
@@ -416,17 +418,14 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
         combined.add(UnifiedChatItem.fromUser(userChat));
       }
 
-      // Add joined EME Servers and Projects
+      // Add joined EME Servers
       for (final server in joinedServers) {
-        final isProj =
-            server.category.name.trim().toLowerCase() == 'project' ||
-            server.category.id.trim().toLowerCase() == 'project' ||
-            server.serverFunction.trim().toLowerCase() == 'project';
-        if (isProj) {
-          combined.add(UnifiedChatItem.fromProject(server: server));
-        } else {
-          combined.add(UnifiedChatItem.fromServer(server));
-        }
+        combined.add(UnifiedChatItem.fromServer(server));
+      }
+
+      // Add projects (librarycollections the user is on the team of)
+      for (final project in projects) {
+        combined.add(UnifiedChatItem.fromProject(collection: project));
       }
 
       // Sort with latest message on top

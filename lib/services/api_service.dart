@@ -50,6 +50,52 @@ abstract class IApiService {
   Future<List<BlogPostModel>> fetchServerBlogPosts(String serverId);
   Future<List<EmeProfileModel>> searchUsers(String query);
   Future<List<EmeProfileModel>> fetchUsers();
+
+  /// Loads a project (`librarycollection`) with its team. Throws when the
+  /// server is unreachable or the collection is not found.
+  Future<LibraryCollectionModel> fetchProjectCollection(
+    String collectionId, {
+    String? baseUrl,
+  });
+
+  /// Projects the signed-in user is on the team of
+  /// (`librarycollection/viewprojects.json`).
+  Future<List<LibraryCollectionModel>> fetchUserProjects();
+
+  /// Opens the project's team chat channel, the same one the web project chat
+  /// page uses (`librarycollection/connectchat.json`). [params] are sent along
+  /// (form submissions).
+  Future<ProjectChatConnection> connectProjectChat(
+    String collectionId, {
+    Map<String, dynamic>? params,
+  });
+
+  /// Follows or unfollows the project for the signed-in user
+  /// (`librarycollection/togglefollow.json`).
+  Future<ProjectFollowState> toggleProjectFollow(String collectionId);
+
+  /// Puts a user on the project's team: an existing user by [userId], or by
+  /// [email] (creating the user if needed). Editors only
+  /// (`librarycollection/addteammember.json`).
+  Future<void> addProjectTeamMember(
+    String collectionId, {
+    String? userId,
+    String? email,
+    String? firstName,
+    String? lastName,
+  });
+
+  /// Roles a team member can have (`librarycollection/teamroles.json`).
+  Future<List<ProjectTeamRole>> fetchTeamRoles();
+
+  /// Changes a team membership: on/off the team and its roles. Needs
+  /// `canviewsettings` (`librarycollection/updateteammember.json`).
+  Future<void> updateProjectTeamMember(
+    String collectionId, {
+    required String memberId,
+    bool? onTheTeam,
+    List<String>? roleIds,
+  });
 }
 
 /// Concrete implementation of the API Service
@@ -1083,5 +1129,200 @@ class ApiService implements IApiService {
     return list
         .map((item) => BlogPostModel.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  // ==========================================
+  // 10. PROJECTS (librarycollection)
+  // ==========================================
+
+  /// GETs a `librarycollection` service and returns the decoded JSON map.
+  /// Throws on network errors or a non-map response.
+  Future<Map<String, dynamic>> _getProjectJson(
+    String path, {
+    String? baseUrl,
+    Map<String, dynamic>? query,
+    required String reason,
+  }) async {
+    final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
+        ? (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl)
+        : _cleanBaseUrl;
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final primaryUrl = '$cleanBase/services/module/librarycollection/$path';
+
+    debugPrint('[ApiService] $reason GET URL: $primaryUrl $query');
+    try {
+      final response = await _dio.get(
+        primaryUrl,
+        queryParameters: query,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-tokentype': 'entermedia',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) {
+        data = jsonDecode(data);
+      }
+      if (data is Map<String, dynamic>) return data;
+      throw Exception('$reason: unexpected response');
+    } catch (e, stack) {
+      debugPrint('[ApiService] $reason error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.$reason failed',
+        customKeys: {'url': primaryUrl, ...?query},
+      );
+      rethrow;
+    }
+  }
+
+  static String? _responseStatus(Map<String, dynamic> data) {
+    final response = data['response'];
+    return response is Map ? response['status']?.toString() : null;
+  }
+
+  @override
+  Future<LibraryCollectionModel> fetchProjectCollection(
+    String collectionId, {
+    String? baseUrl,
+  }) async {
+    final data = await _getProjectJson(
+      'data/${Uri.encodeComponent(collectionId)}',
+      baseUrl: baseUrl,
+      reason: 'fetchProjectCollection',
+    );
+    final hit = data['data'];
+    if (hit is Map<String, dynamic>) {
+      return LibraryCollectionModel.fromJson(hit);
+    }
+    throw Exception(
+      'Project $collectionId: ${_responseStatus(data) ?? 'no data'}',
+    );
+  }
+
+  @override
+  Future<List<LibraryCollectionModel>> fetchUserProjects() async {
+    final data = await _getProjectJson(
+      'viewprojects.json',
+      reason: 'fetchUserProjects',
+    );
+    final results = data['results'];
+    if (results is! List) {
+      throw Exception('Projects: ${_responseStatus(data) ?? 'no results'}');
+    }
+    return results
+        .whereType<Map<String, dynamic>>()
+        .map(LibraryCollectionModel.fromJson)
+        .toList();
+  }
+
+  @override
+  Future<ProjectChatConnection> connectProjectChat(
+    String collectionId, {
+    Map<String, dynamic>? params,
+  }) async {
+    final data = await _getProjectJson(
+      'connectchat.json',
+      query: {...?params, 'collectionid': collectionId},
+      reason: 'connectProjectChat',
+    );
+    final connection = ProjectChatConnection.fromJson(data);
+    if (connection.channelId.isEmpty) {
+      throw Exception(
+        'Project chat $collectionId: ${_responseStatus(data) ?? 'no channel'}',
+      );
+    }
+    return connection;
+  }
+
+  @override
+  Future<ProjectFollowState> toggleProjectFollow(String collectionId) async {
+    final data = await _getProjectJson(
+      'togglefollow.json',
+      query: {'collectionid': collectionId},
+      reason: 'toggleProjectFollow',
+    );
+    if (_responseStatus(data) != 'ok') {
+      throw Exception(
+        'Follow $collectionId: ${_responseStatus(data) ?? 'failed'}',
+      );
+    }
+    return ProjectFollowState.fromJson(data);
+  }
+
+  @override
+  Future<void> addProjectTeamMember(
+    String collectionId, {
+    String? userId,
+    String? email,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final data = await _getProjectJson(
+      'addteammember.json',
+      query: {
+        'collectionid': collectionId,
+        'userid': ?userId,
+        'email': ?email,
+        'firstName': ?firstName,
+        'lastName': ?lastName,
+      },
+      reason: 'addProjectTeamMember',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final response = data['response'];
+      final error = response is Map ? response['error'] : null;
+      throw Exception(error ?? 'Could not add team member');
+    }
+  }
+
+  @override
+  Future<List<ProjectTeamRole>> fetchTeamRoles() async {
+    final data = await _getProjectJson(
+      'teamroles.json',
+      reason: 'fetchTeamRoles',
+    );
+    final roles = data['roles'];
+    if (roles is! List) {
+      throw Exception('Team roles: ${_responseStatus(data) ?? 'no roles'}');
+    }
+    return roles
+        .whereType<Map<String, dynamic>>()
+        .map(ProjectTeamRole.fromJson)
+        .toList();
+  }
+
+  @override
+  Future<void> updateProjectTeamMember(
+    String collectionId, {
+    required String memberId,
+    bool? onTheTeam,
+    List<String>? roleIds,
+  }) async {
+    final data = await _getProjectJson(
+      'updateteammember.json',
+      query: {
+        'collectionid': collectionId,
+        'memberid': memberId,
+        'ontheteam': ?onTheTeam?.toString(),
+        'teamroles': ?roleIds?.join(','),
+      },
+      reason: 'updateProjectTeamMember',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final response = data['response'];
+      final error = response is Map ? response['error'] : null;
+      throw Exception(error ?? 'Could not update team member');
+    }
   }
 }

@@ -54,8 +54,11 @@ Dio createMockAuthDio() {
             Response(
               requestOptions: options,
               statusCode: 200,
+              // Shape of services/authentication/token.json
               data: {
                 'response': {'status': 'ok'},
+                'access_token': 'token_${email.split('@').first}',
+                'token_type': 'Bearer',
                 'user': {
                   'username': 'usr_${email.split('@').first}',
                   'email': email,
@@ -318,6 +321,7 @@ void main() {
 
       final loginJson = {
         'response': {'status': 'ok', 'user': 'usr_99'},
+        'access_token': 'token_xyz123',
         'user': {
           'username': 'usr_99',
           'firstname': 'Jane',

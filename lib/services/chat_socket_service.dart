@@ -494,15 +494,29 @@ class ChatSocketService {
 
   String _resolveWsBaseUrl([String? explicitBaseUrl]) {
     if (explicitBaseUrl != null && explicitBaseUrl.isNotEmpty) {
+      final url = Uri.tryParse(explicitBaseUrl);
+      // An http(s) server address (e.g. ServerModel.serverMediaDBUrl) points
+      // at that server's chat socket.
+      if (url != null && (url.scheme == 'http' || url.scheme == 'https')) {
+        return chatSocketUrlFor(url);
+      }
       return explicitBaseUrl;
     }
     final oi = OpenI.instance;
     if (oi != null && oi.settings.siteroot.isNotEmpty) {
-      final url = Uri.parse(oi.settings.siteroot);
-      return '${url.scheme == 'https' ? 'wss' : 'ws'}://${url.host}${url.port != 80 && url.port != 443 ? ':${url.port}' : ''}'
-          '/entermedia/services/websocket/org/entermediadb/websocket/chat/ChatConnection';
+      return chatSocketUrlFor(Uri.parse(oi.settings.siteroot));
     }
     return '';
+  }
+
+  /// The chat WebSocket endpoint on the host of [httpUrl].
+  @visibleForTesting
+  static String chatSocketUrlFor(Uri httpUrl) {
+    final port = httpUrl.hasPort && httpUrl.port != 80 && httpUrl.port != 443
+        ? ':${httpUrl.port}'
+        : '';
+    return '${httpUrl.scheme == 'https' ? 'wss' : 'ws'}://${httpUrl.host}$port'
+        '/entermedia/services/websocket/org/entermediadb/websocket/chat/ChatConnection';
   }
 
   String? _resolveToken([String? explicitToken]) {

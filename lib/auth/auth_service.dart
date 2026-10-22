@@ -186,6 +186,8 @@ class AuthService implements IAuthService {
       final result = LoginResult.fromJson(jsonMap);
 
       if (result.isSuccess && result.token != null) {
+        // getAuthToken/checkAuthSession and ApiService read it back from here.
+        await SharedPref.saveEMKey(result.token!);
         currentToken = result.token;
         if (result.user != null) {
           await SharedPref.saveEmUser(result.user!);

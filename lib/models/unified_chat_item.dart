@@ -37,10 +37,13 @@ class UnifiedChatItem {
       emeServer = server,
       projectCollection = null;
 
+  /// A project: a `librarycollection` from `viewprojects.json`, or an EME
+  /// Server whose category is "project". At least one must be given.
   const UnifiedChatItem.fromProject({
-    required ServerModel server,
+    ServerModel? server,
     LibraryCollectionModel? collection,
-  }) : type = ChatItemType.project,
+  }) : assert(server != null || collection != null),
+       type = ChatItemType.project,
        userChat = null,
        mcpConversation = null,
        emeServer = server,
@@ -76,8 +79,6 @@ class UnifiedChatItem {
 
   String get subtitle {
     if (isProject) {
-      final status = projectCollection?.projectStatus;
-      if (status != null && status.isNotEmpty) return status;
       return emeServer?.subtitle ?? emeServer?.category.name ?? 'Project';
     }
     if (isServer) return emeServer!.subtitle ?? emeServer!.category.name;

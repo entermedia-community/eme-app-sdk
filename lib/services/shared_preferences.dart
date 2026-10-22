@@ -105,6 +105,8 @@ class SharedPref {
     prefs.remove("recent");
     // remove emUser
     prefs.remove("emUser");
+    // remove the login token so the session ends
+    prefs.remove("entermediakey");
   }
 
   static const String _categoriesCacheKey = 'eme_server_categories_cache';
