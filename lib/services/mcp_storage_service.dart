@@ -12,12 +12,7 @@ class McpStorageService {
   static Future<List<McpServerModel>> loadServers() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_serversKey);
-    if (raw == null || raw.isEmpty) {
-      // Seed default sample MCP servers
-      final defaultServers = _getDefaultSeedServers();
-      await saveServers(defaultServers);
-      return defaultServers;
-    }
+    if (raw == null || raw.isEmpty) return [];
 
     try {
       final decoded = jsonDecode(raw);
@@ -27,7 +22,7 @@ class McpStorageService {
             .toList();
       }
     } catch (_) {}
-    return _getDefaultSeedServers();
+    return [];
   }
 
   /// Save the full list of MCP servers
@@ -92,143 +87,5 @@ class McpStorageService {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_conversationsKeyPrefix$serverId';
     await prefs.remove(key);
-  }
-
-  /// Default demo / sample servers to get started immediately
-  static List<McpServerModel> _getDefaultSeedServers() {
-    return [
-      McpServerModel(
-        id: 'eme_world_mcp',
-        name: 'EnterMedia EME World MCP',
-        url: 'https://eme-world-mcp.entermediadb.net/sse',
-        transportType: McpTransportType.sse,
-        description: 'Access media library, catalog search, user directory, and workflow automation.',
-        colorValue: 0xFF0284C7,
-        status: McpServerStatus.connected,
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        lastConnectedAt: DateTime.now(),
-        tools: const [
-          McpToolDefinition(
-            name: 'search_media_assets',
-            description: 'Search images, videos, and documents in the EnterMedia library',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'query': {'type': 'string', 'description': 'Keyword search term'},
-                'category': {'type': 'string', 'description': 'Optional category filter'},
-                'limit': {'type': 'integer', 'description': 'Maximum results to return (default: 10)'},
-              },
-              'required': ['query'],
-            },
-          ),
-          McpToolDefinition(
-            name: 'get_user_profile',
-            description: 'Fetch user profile, reputation score, and credentials by username',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'username': {'type': 'string', 'description': 'Username or User ID'},
-              },
-              'required': ['username'],
-            },
-          ),
-          McpToolDefinition(
-            name: 'create_catalog_product',
-            description: 'Create a new marketplace listing or product entry in EME Catalog',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'title': {'type': 'string', 'description': 'Product or service title'},
-                'price': {'type': 'number', 'description': 'Price in USD or Tokens'},
-                'type': {
-                  'type': 'string',
-                  'description': 'Product category',
-                  'enum': ['ecommerce', 'rideshare', 'rental', 'general'],
-                },
-              },
-              'required': ['title', 'price'],
-            },
-          ),
-          McpToolDefinition(
-            name: 'get_server_health',
-            description: 'Check EnterMedia server latency, cluster nodes, and background workers',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'serverId': {'type': 'string', 'description': 'Target Server ID'},
-              },
-            },
-          ),
-        ],
-        prompts: const [
-          McpPromptDefinition(
-            name: 'summarize_assets',
-            description: 'Generates an executive summary of newly uploaded media assets',
-            arguments: [
-              McpPromptArgument(name: 'date_range', description: 'e.g. today, this_week', required: false),
-            ],
-          ),
-          McpPromptDefinition(
-            name: 'audit_security_logs',
-            description: 'Analyzes user access logs for suspicious activity',
-          ),
-        ],
-        resources: const [
-          McpResourceDefinition(
-            uri: 'eme://schemas/catalog.json',
-            name: 'Catalog Schema',
-            description: 'JSON Schema definition for EME marketplace products',
-            mimeType: 'application/json',
-          ),
-        ],
-      ),
-      McpServerModel(
-        id: 'remote_ai_tools_mcp',
-        name: 'AI Agent & Web Tools MCP',
-        url: 'https://mcp-agent.cloud/v1/sse',
-        transportType: McpTransportType.sse,
-        description: 'Web scraping, live weather forecast, code runner, and mathematical computation.',
-        colorValue: 0xFF8B5CF6,
-        status: McpServerStatus.connected,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        lastConnectedAt: DateTime.now(),
-        tools: const [
-          McpToolDefinition(
-            name: 'get_weather_forecast',
-            description: 'Get real-time weather and temperature for a city',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'city': {'type': 'string', 'description': 'City name (e.g. San Francisco, Tokyo, London)'},
-                'units': {'type': 'string', 'enum': ['celsius', 'fahrenheit'], 'description': 'Temperature unit'},
-              },
-              'required': ['city'],
-            },
-          ),
-          McpToolDefinition(
-            name: 'execute_calculator',
-            description: 'Evaluate mathematical expressions accurately',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'expression': {'type': 'string', 'description': 'e.g. 12 * 45 + sqrt(144)'},
-              },
-              'required': ['expression'],
-            },
-          ),
-          McpToolDefinition(
-            name: 'fetch_web_page',
-            description: 'Fetches clean markdown text content from any public webpage',
-            inputSchema: {
-              'type': 'object',
-              'properties': {
-                'url': {'type': 'string', 'description': 'URL to fetch'},
-              },
-              'required': ['url'],
-            },
-          ),
-        ],
-      ),
-    ];
   }
 }
