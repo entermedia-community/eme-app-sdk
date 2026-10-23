@@ -64,7 +64,8 @@ class McpConversationModel {
       server: McpServerModel.fromJson(serverJson),
       lastMessage: json['lastMessage']?.toString() ?? '',
       lastMessageTime: json['lastMessageTime'] != null
-          ? DateTime.tryParse(json['lastMessageTime'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(json['lastMessageTime'].toString()) ??
+                DateTime.now()
           : DateTime.now(),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       messages: msgs,

@@ -119,7 +119,9 @@ class McpChatMessage {
 
   factory McpChatMessage.fromJson(Map<String, dynamic> json) {
     return McpChatMessage(
-      id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          json['id']?.toString() ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       serverId: json['serverId']?.toString() ?? '',
       role: McpMessageRole.fromString(json['role']?.toString()),
       content: json['content']?.toString() ?? '',

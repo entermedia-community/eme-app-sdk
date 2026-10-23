@@ -12,7 +12,7 @@ class CustomException implements Exception {
 
 class FetchDataException extends CustomException {
   FetchDataException([String message = "Unknown Comm Err0r"])
-      : super(message, "Error During Communication: ");
+    : super(message, "Error During Communication: ");
 }
 
 class BadRequestException extends CustomException {
@@ -21,5 +21,5 @@ class BadRequestException extends CustomException {
 
 class UnauthorisedException extends CustomException {
   UnauthorisedException([dynamic message])
-      : super(message, "Unauthorised Request: ");
+    : super(message, "Unauthorised Request: ");
 }

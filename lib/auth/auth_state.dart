@@ -65,6 +65,7 @@ class LoginResult {
   final bool isSuccess;
   final EmUser? user;
   final String? token;
+  final String? keyId;
   final String? errorMessage;
 
   String? get entermediakey => token;
@@ -73,6 +74,7 @@ class LoginResult {
     required this.isSuccess,
     this.user,
     this.token,
+    this.keyId,
     this.errorMessage,
   });
 
@@ -117,6 +119,7 @@ class LoginResult {
       isSuccess: isOk,
       user: user,
       token: token,
+      keyId: (json['key_id'] ?? response['key_id'])?.toString(),
       errorMessage: isOk ? null : (rawError ?? 'Authentication failed'),
     );
   }

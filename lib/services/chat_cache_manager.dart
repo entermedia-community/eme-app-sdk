@@ -11,14 +11,13 @@ class ChatCacheManager {
   static BaseCacheManager? _customInstance;
 
   /// CacheManager configured for chat metadata and messages
-  static BaseCacheManager get instance =>
-      _customInstance ??= CacheManager(
-        Config(
-          key,
-          stalePeriod: const Duration(days: 14),
-          maxNrOfCacheObjects: 200,
-        ),
-      );
+  static BaseCacheManager get instance => _customInstance ??= CacheManager(
+    Config(
+      key,
+      stalePeriod: const Duration(days: 14),
+      maxNrOfCacheObjects: 200,
+    ),
+  );
 
   @visibleForTesting
   static set customInstance(BaseCacheManager? manager) {
@@ -35,8 +34,7 @@ class ChatCacheManager {
     String baseUrl,
     String channelId, {
     String? serverId,
-  }) =>
-      'chat_history_server_${baseUrl.trim()}_${serverId ?? ""}_$channelId';
+  }) => 'chat_history_server_${baseUrl.trim()}_${serverId ?? ""}_$channelId';
 
   /// Put raw string (JSON) into cache
   static Future<void> putJson(

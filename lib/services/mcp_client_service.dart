@@ -36,7 +36,8 @@ class McpClientService {
   /// Extracts the MCP Session ID from either the response header or response body
   String? _extractSessionId(Response response) {
     // 1. Check HTTP response headers (standard Mcp-Session-Id header)
-    final headerVal = response.headers.value('mcp-session-id') ??
+    final headerVal =
+        response.headers.value('mcp-session-id') ??
         response.headers.value('Mcp-Session-Id');
     if (headerVal != null && headerVal.trim().isNotEmpty) {
       return headerVal.trim();

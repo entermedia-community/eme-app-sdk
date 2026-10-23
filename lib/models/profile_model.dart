@@ -51,9 +51,8 @@ class ProfileModel {
       name: json['name'] as String? ?? '',
       role: json['role'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           const [],
       avatarUrl: json['avatarUrl'] as String?,
       portfolioLabel: json['portfolioLabel'] as String? ?? 'PORTFOLIO',

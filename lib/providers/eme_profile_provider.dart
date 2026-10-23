@@ -65,19 +65,15 @@ class EmeProfileState {
     final q = query.toLowerCase();
     return list.where((item) {
       final nameMatch = item.name.toLowerCase().contains(q);
-      final subtitleMatch =
-          item.subtitle?.toLowerCase().contains(q) ?? false;
+      final subtitleMatch = item.subtitle?.toLowerCase().contains(q) ?? false;
       final specialistMatch =
           item.specialistTitle?.toLowerCase().contains(q) ?? false;
       final descMatch = item.description.toLowerCase().contains(q);
-      final tagMatch = item.tags.any(
-        (tag) => tag.toLowerCase().contains(q),
-      );
+      final tagMatch = item.tags.any((tag) => tag.toLowerCase().contains(q));
       final serviceMatch = item.servicesOffered.any(
         (srv) => srv.toLowerCase().contains(q),
       );
-      final locationMatch =
-          item.location?.toLowerCase().contains(q) ?? false;
+      final locationMatch = item.location?.toLowerCase().contains(q) ?? false;
 
       return nameMatch ||
           subtitleMatch ||
@@ -116,11 +112,7 @@ class EmeProfileNotifier extends StateNotifier<EmeProfileState> {
   Timer? _debounceTimer;
 
   EmeProfileNotifier({this.apiService, this.authService})
-      : super(
-        const EmeProfileState(
-          profiles: [],
-        ),
-      ) {
+    : super(const EmeProfileState(profiles: [])) {
     loadUsers();
   }
 
@@ -134,8 +126,7 @@ class EmeProfileNotifier extends StateNotifier<EmeProfileState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final fetched =
-          await (apiService?.fetchUsers() ??
-              Future.value(<EmeProfileModel>[]));
+          await (apiService?.fetchUsers() ?? Future.value(<EmeProfileModel>[]));
       state = state.copyWith(profiles: fetched, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -189,10 +180,7 @@ class EmeProfileNotifier extends StateNotifier<EmeProfileState> {
           isSearching: false,
         );
       } catch (e) {
-        state = state.copyWith(
-          isSearching: false,
-          error: e.toString(),
-        );
+        state = state.copyWith(isSearching: false, error: e.toString());
       }
     });
   }
@@ -222,7 +210,7 @@ class EmeProfileNotifier extends StateNotifier<EmeProfileState> {
 
 final emeProfileProvider =
     StateNotifierProvider<EmeProfileNotifier, EmeProfileState>((ref) {
-  final api = ref.watch(apiServiceProvider);
-  final authService = ref.watch(authServiceProvider);
-  return EmeProfileNotifier(apiService: api, authService: authService);
-});
+      final api = ref.watch(apiServiceProvider);
+      final authService = ref.watch(authServiceProvider);
+      return EmeProfileNotifier(apiService: api, authService: authService);
+    });

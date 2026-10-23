@@ -18,7 +18,9 @@ class McpStorageService {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
         return decoded
-            .map((item) => McpServerModel.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) => McpServerModel.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
       }
     } catch (_) {}
@@ -33,7 +35,9 @@ class McpStorageService {
   }
 
   /// Load conversation for a specific server
-  static Future<McpConversationModel> loadConversation(McpServerModel server) async {
+  static Future<McpConversationModel> loadConversation(
+    McpServerModel server,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_conversationsKeyPrefix${server.id}';
     final raw = prefs.getString(key);

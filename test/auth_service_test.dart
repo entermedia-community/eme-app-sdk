@@ -2,6 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:eme_app_sdk/eme_app_sdk.dart';
 
+class MemoryKeyStore implements DeviceKeyStore {
+  DeviceKey? key;
+  @override
+  Future<DeviceKey?> read() async => key;
+  @override
+  Future<void> save(DeviceKey key) async => this.key = key;
+  @override
+  Future<void> clear() async => key = null;
+}
+
 Dio createMockAuthDio() {
   final dio = Dio();
   dio.interceptors.add(
@@ -35,7 +45,29 @@ Dio createMockAuthDio() {
               },
             ),
           );
+        } else if (path.contains('token.json') && data['grant_type'] == 'key') {
+          final ok =
+              data['key_id'] == 'key_1' &&
+              data['signature'].toString().isNotEmpty &&
+              data['nonce'].toString().length >= 16;
+          return handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: ok ? 200 : 400,
+              data: ok
+                  ? {
+                      'access_token': 'renewed_token',
+                      'token_type': 'Bearer',
+                      'key_id': 'key_1',
+                      'expires_in': 604800,
+                    }
+                  : {'error': 'invalid_grant', 'error_description': 'bad key'},
+            ),
+          );
         } else if (path.contains('token.json')) {
+          if (data['publickey'].toString().isEmpty) {
+            return handler.reject(DioException(requestOptions: options));
+          }
           final code = data['code']?.toString() ?? '';
           final email = data['email']?.toString() ?? '';
           if (code.length < 6 || code == '123') {
@@ -59,6 +91,7 @@ Dio createMockAuthDio() {
                 'response': {'status': 'ok'},
                 'access_token': 'token_${email.split('@').first}',
                 'token_type': 'Bearer',
+                'key_id': 'key_1',
                 'user': {
                   'username': 'usr_${email.split('@').first}',
                   'email': email,
@@ -224,7 +257,10 @@ void main() {
 
   group('AuthService Tests', () {
     test('sendUserCode handles success, nouser, and error', () async {
-      final authService = AuthService(dio: createMockAuthDio());
+      final authService = AuthService(
+        dio: createMockAuthDio(),
+        keyStore: MemoryKeyStore(),
+      );
 
       // 1. Success case
       final okRes = await authService.sendUserCode(email: 'test@emeworld.org');
@@ -248,7 +284,10 @@ void main() {
     });
 
     test('loginWithCode authenticates and saves session', () async {
-      final authService = AuthService(dio: createMockAuthDio());
+      final authService = AuthService(
+        dio: createMockAuthDio(),
+        keyStore: MemoryKeyStore(),
+      );
 
       // 1. Invalid code
       final invalidRes = await authService.loginWithCode(
@@ -281,8 +320,36 @@ void main() {
       expect(await authService.getCurrentUser(), isNull);
     });
 
+    test(
+      'loginWithCode registers a key that refreshToken signs with',
+      () async {
+        final store = MemoryKeyStore();
+        final authService = AuthService(
+          dio: createMockAuthDio(),
+          keyStore: store,
+        );
+        expect(await authService.refreshToken(), false);
+
+        await authService.loginWithCode(
+          email: 'carol@emeworld.org',
+          code: '111222',
+        );
+        expect(store.key?.keyId, 'key_1');
+        expect(store.key?.username, 'usr_carol');
+
+        expect(await authService.refreshToken(), true);
+        expect(await authService.getAuthToken(), 'renewed_token');
+
+        await authService.logout();
+        expect(store.key, isNull);
+      },
+    );
+
     test('checkAuthSession verifies cached session', () async {
-      final authService = AuthService(dio: createMockAuthDio());
+      final authService = AuthService(
+        dio: createMockAuthDio(),
+        keyStore: MemoryKeyStore(),
+      );
 
       // Initially no session
       final initialSession = await authService.checkAuthSession();
@@ -350,7 +417,10 @@ void main() {
     test(
       'searchUsers queries users endpoint and parses user results',
       () async {
-        final authService = AuthService(dio: createMockAuthDio());
+        final authService = AuthService(
+          dio: createMockAuthDio(),
+          keyStore: MemoryKeyStore(),
+        );
         final results = await authService.searchUsers('admin');
         expect(results.isNotEmpty, true);
         expect(results.first.username, 'admin');

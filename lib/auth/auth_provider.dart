@@ -76,16 +76,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.copyWith(
           status: AuthStatus.error,
-          errorMessage: result.errorMessage ?? 'Failed to send verification code',
+          errorMessage:
+              result.errorMessage ?? 'Failed to send verification code',
         );
       }
       return result;
     } catch (e) {
       final err = e.toString();
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: err,
-      );
+      state = state.copyWith(status: AuthStatus.error, errorMessage: err);
       return SendUserCodeResult(
         status: SendUserCodeStatus.error,
         errorMessage: err,
@@ -98,11 +96,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String firstName,
     required String lastName,
   }) async {
-    return sendUserCode(
-      email: email,
-      firstName: firstName,
-      lastName: lastName,
-    );
+    return sendUserCode(email: email, firstName: firstName, lastName: lastName);
   }
 
   Future<LoginResult> loginWithCode({
@@ -115,10 +109,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
 
     try {
-      final result = await authService.loginWithCode(
-        email: email,
-        code: code,
-      );
+      final result = await authService.loginWithCode(email: email, code: code);
 
       if (result.isSuccess && result.user != null) {
         state = state.copyWith(
@@ -136,14 +127,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return result;
     } catch (e) {
       final err = e.toString();
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: err,
-      );
-      return LoginResult(
-        isSuccess: false,
-        errorMessage: err,
-      );
+      state = state.copyWith(status: AuthStatus.error, errorMessage: err);
+      return LoginResult(isSuccess: false, errorMessage: err);
     }
   }
 

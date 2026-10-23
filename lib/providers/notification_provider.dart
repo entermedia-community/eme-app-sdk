@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/push_notification_service.dart';
 
 /// Provider for the PushNotificationService instance
-final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+final pushNotificationServiceProvider = Provider<PushNotificationService>((
+  ref,
+) {
   return PushNotificationService.instance;
 });
 
@@ -13,13 +15,16 @@ final fcmTokenProvider = FutureProvider<String?>((ref) async {
 });
 
 /// Stream provider for listening to foreground notifications
-final pushNotificationStreamProvider = StreamProvider<PushNotificationMessage>((ref) {
+final pushNotificationStreamProvider = StreamProvider<PushNotificationMessage>((
+  ref,
+) {
   final service = ref.watch(pushNotificationServiceProvider);
   return service.onMessage;
 });
 
 /// Stream provider for notifications that caused the app to open
-final pushNotificationOpenedAppStreamProvider = StreamProvider<PushNotificationMessage>((ref) {
-  final service = ref.watch(pushNotificationServiceProvider);
-  return service.onMessageOpenedApp;
-});
+final pushNotificationOpenedAppStreamProvider =
+    StreamProvider<PushNotificationMessage>((ref) {
+      final service = ref.watch(pushNotificationServiceProvider);
+      return service.onMessageOpenedApp;
+    });

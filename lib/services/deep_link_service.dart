@@ -4,12 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/error_handler.dart';
 
 /// Deep Link Types
-enum DeepLinkType {
-  chat,
-  userProfile,
-  server,
-  unknown,
-}
+enum DeepLinkType { chat, userProfile, server, unknown }
 
 /// Parsed Deep Link Payload
 class DeepLinkPayload {
@@ -37,7 +32,8 @@ class DeepLinkPayload {
         .map((s) => s.trim())
         .toList();
 
-    String? targetUsername = query['username'] ?? query['user'] ?? query['u'] ?? query['chat'];
+    String? targetUsername =
+        query['username'] ?? query['user'] ?? query['u'] ?? query['chat'];
     String? targetChannelId = query['channel'] ?? query['channelId'];
     String? targetServerId = query['server'] ?? query['serverId'];
     DeepLinkType detectedType = DeepLinkType.unknown;
@@ -56,7 +52,10 @@ class DeepLinkPayload {
       if (pathSegments.isNotEmpty) {
         targetServerId ??= pathSegments.first;
       }
-    } else if (uri.scheme == 'emeworld' && host.isNotEmpty && host != 'eme.world' && host != 'localhost') {
+    } else if (uri.scheme == 'emeworld' &&
+        host.isNotEmpty &&
+        host != 'eme.world' &&
+        host != 'localhost') {
       // e.g. emeworld://john or emeworld://@john
       detectedType = DeepLinkType.chat;
       targetUsername ??= host.startsWith('@') ? host.substring(1) : host;
@@ -66,7 +65,10 @@ class DeepLinkPayload {
     if (pathSegments.isNotEmpty) {
       final firstSegment = pathSegments[0].toLowerCase();
 
-      if (firstSegment == 'chat' || firstSegment == 'user' || firstSegment == 'profile' || firstSegment == 'u') {
+      if (firstSegment == 'chat' ||
+          firstSegment == 'user' ||
+          firstSegment == 'profile' ||
+          firstSegment == 'u') {
         detectedType = DeepLinkType.chat;
         if (pathSegments.length > 1) {
           targetUsername ??= pathSegments[1];
@@ -80,7 +82,16 @@ class DeepLinkPayload {
         detectedType = DeepLinkType.chat;
         targetUsername ??= pathSegments[0].substring(1);
       } else if (pathSegments.length == 1 &&
-          !['api', 'static', 'assets', 'auth', 'login', 'register', 'site', 'mediadb'].contains(firstSegment)) {
+          ![
+            'api',
+            'static',
+            'assets',
+            'auth',
+            'login',
+            'register',
+            'site',
+            'mediadb',
+          ].contains(firstSegment)) {
         // e.g. https://eme.world/username
         detectedType = DeepLinkType.chat;
         targetUsername ??= pathSegments[0];
@@ -95,7 +106,9 @@ class DeepLinkPayload {
       }
     }
 
-    if (targetUsername != null && targetUsername.isNotEmpty && detectedType == DeepLinkType.unknown) {
+    if (targetUsername != null &&
+        targetUsername.isNotEmpty &&
+        detectedType == DeepLinkType.unknown) {
       detectedType = DeepLinkType.chat;
     }
 
@@ -195,10 +208,16 @@ class DeepLinkService {
   }
 
   /// Generate shareable user chat link
-  static String generateUserChatLink(String username, {bool universal = true, String siteRoot = 'https://eme.world'}) {
+  static String generateUserChatLink(
+    String username, {
+    bool universal = true,
+    String siteRoot = 'https://eme.world',
+  }) {
     final clean = username.trim().replaceAll('@', '');
     if (universal) {
-      final base = siteRoot.endsWith('/') ? siteRoot.substring(0, siteRoot.length - 1) : siteRoot;
+      final base = siteRoot.endsWith('/')
+          ? siteRoot.substring(0, siteRoot.length - 1)
+          : siteRoot;
       return '$base/chat/$clean';
     }
     return 'emeworld://chat/$clean';

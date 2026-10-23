@@ -116,10 +116,10 @@ class McpPromptArgument {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'required': required,
-      };
+    'name': name,
+    'description': description,
+    'required': required,
+  };
 }
 
 /// Definition of an MCP Prompt advertised by the remote server
@@ -152,10 +152,10 @@ class McpPromptDefinition {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'arguments': arguments.map((a) => a.toJson()).toList(),
-      };
+    'name': name,
+    'description': description,
+    'arguments': arguments.map((a) => a.toJson()).toList(),
+  };
 }
 
 /// Definition of an MCP Resource advertised by the remote server
@@ -182,11 +182,11 @@ class McpResourceDefinition {
   }
 
   Map<String, dynamic> toJson() => {
-        'uri': uri,
-        'name': name,
-        'description': description,
-        if (mimeType != null) 'mimeType': mimeType,
-      };
+    'uri': uri,
+    'name': name,
+    'description': description,
+    if (mimeType != null) 'mimeType': mimeType,
+  };
 }
 
 /// Remote MCP Server configuration and capability snapshot
@@ -326,10 +326,14 @@ class McpServerModel {
     }
 
     return McpServerModel(
-      id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          json['id']?.toString() ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: json['name']?.toString() ?? 'MCP Server',
       url: json['url']?.toString() ?? '',
-      transportType: McpTransportType.fromString(json['transportType']?.toString()),
+      transportType: McpTransportType.fromString(
+        json['transportType']?.toString(),
+      ),
       headers: headersMap,
       systemPrompt: json['systemPrompt']?.toString(),
       description: json['description']?.toString() ?? '',
@@ -348,7 +352,8 @@ class McpServerModel {
       tools: tools,
       prompts: prompts,
       resources: resources,
-      sessionId: json['sessionId']?.toString() ??
+      sessionId:
+          json['sessionId']?.toString() ??
           json['session_id']?.toString() ??
           json['mcp_session_id']?.toString(),
       createdAt: json['createdAt'] != null
@@ -379,7 +384,8 @@ class McpServerModel {
       'resources': resources.map((r) => r.toJson()).toList(),
       if (sessionId != null) 'sessionId': sessionId,
       'createdAt': createdAt.toIso8601String(),
-      if (lastConnectedAt != null) 'lastConnectedAt': lastConnectedAt!.toIso8601String(),
+      if (lastConnectedAt != null)
+        'lastConnectedAt': lastConnectedAt!.toIso8601String(),
     };
   }
 }

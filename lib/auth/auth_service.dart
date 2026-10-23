@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 export 'package:dio/dio.dart' show MultipartFile, FormData;
@@ -8,6 +9,7 @@ import '../services/shared_preferences.dart';
 import '../utils/dio.dart';
 import '../utils/error_handler.dart';
 import 'auth_state.dart';
+import 'device_key_store.dart';
 
 abstract class IAuthService {
   Future<SendUserCodeResult> sendUserCode({
@@ -25,6 +27,10 @@ abstract class IAuthService {
   Future<EmUser?> checkAuthSession();
   Future<EmUser?> getCurrentUser();
   Future<String?> getAuthToken();
+
+  /// Signs in again with this device's registered key (`grant_type=key`).
+  /// Returns false when there is no key or the server rejects it.
+  Future<bool> refreshToken();
   Future<void> logout();
   Future<bool> isAuthenticated();
   Future<void> saveUserFields(
@@ -37,6 +43,7 @@ class AuthService implements IAuthService {
   final OpenI? openI;
   final Dio _dio;
   final String baseUrl;
+  final DeviceKeyStore _keyStore;
 
   static String? currentUserId;
   static String? get userId => currentUserId;
@@ -47,10 +54,15 @@ class AuthService implements IAuthService {
   static String? currentUserEmail;
   static String? get email => currentUserEmail;
 
-  AuthService({OpenI? openI, Dio? dio, String? baseUrl})
-    : openI = openI ?? OpenI.instance,
-      _dio = dio ?? DioUtil.dio,
-      baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
+  AuthService({
+    OpenI? openI,
+    Dio? dio,
+    String? baseUrl,
+    DeviceKeyStore? keyStore,
+  }) : openI = openI ?? OpenI.instance,
+       _dio = dio ?? DioUtil.dio,
+       _keyStore = keyStore ?? const SecureDeviceKeyStore(),
+       baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
 
   String _cleanUrl(String path) {
     final effectiveOpenI = openI ?? OpenI.instance;
@@ -147,52 +159,54 @@ class AuthService implements IAuthService {
     final cleanCode = code.trim();
     final url = _cleanUrl('/services/authentication/token.json');
 
+    // The code login also registers this device's public key, so later
+    // sessions renew themselves by signing instead of asking for a new code.
+    final seed = await DeviceKeyCrypto.newSeed();
     final body = <String, dynamic>{
       'grant_type': 'otp',
       'email': cleanEmail,
       'code': cleanCode,
+      'publickey': await DeviceKeyCrypto.publicKey(seed),
+      'label': _deviceLabel,
       'firebaseenabled': true,
     };
 
     debugPrint('[AuthService] loginWithCode POST URL: $url');
-    debugPrint('[AuthService] loginWithCode Payload: ${jsonEncode(body)}');
 
     try {
       final response = await _dio.post(
         url,
         data: body,
         options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
-          },
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {'X-tokentype': 'entermedia'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
       );
 
       debugPrint(
-        '[AuthService] loginWithCode Response [${response.statusCode}]: ${response.data}',
+        '[AuthService] loginWithCode Response [${response.statusCode}]',
       );
 
-      final dynamic data = response.data;
-      Map<String, dynamic> jsonMap = {};
-      if (data is Map<String, dynamic>) {
-        jsonMap = data;
-      } else if (data is String && data.trim().isNotEmpty) {
-        jsonMap = jsonDecode(data);
-      }
-
-      final result = LoginResult.fromJson(jsonMap);
+      final result = LoginResult.fromJson(_decodeMap(response.data));
 
       if (result.isSuccess && result.token != null) {
+        final keyId = result.keyId;
+        if (keyId == null || keyId.isEmpty || result.user == null) {
+          return LoginResult(
+            isSuccess: false,
+            errorMessage: 'The server did not register this device key',
+          );
+        }
+        await _keyStore.save(
+          DeviceKey(keyId: keyId, username: result.user!.username, seed: seed),
+        );
         // getAuthToken/checkAuthSession and ApiService read it back from here.
         await SharedPref.saveEMKey(result.token!);
         currentToken = result.token;
-        if (result.user != null) {
-          await SharedPref.saveEmUser(result.user!);
-          currentUserId = result.user!.username;
-        }
+        await SharedPref.saveEmUser(result.user!);
+        currentUserId = result.user!.username;
       }
 
       return result;
@@ -208,6 +222,77 @@ class AuthService implements IAuthService {
         isSuccess: false,
         errorMessage: 'Invalid or expired verification code',
       );
+    }
+  }
+
+  static const _deviceLabel = 'EME app';
+
+  Map<String, dynamic> _decodeMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is String && data.trim().isNotEmpty) {
+      final decoded = jsonDecode(data);
+      if (decoded is Map<String, dynamic>) return decoded;
+    }
+    return {};
+  }
+
+  @override
+  Future<bool> refreshToken() async {
+    final key = await _keyStore.read();
+    if (key == null) return false;
+
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final nonce = DeviceKeyCrypto.b64url(
+      List<int>.generate(24, (_) => Random.secure().nextInt(256)),
+    );
+    final signature = await DeviceKeyCrypto.sign(
+      seed: key.seed,
+      username: key.username,
+      keyId: key.keyId,
+      timestamp: timestamp,
+      nonce: nonce,
+    );
+
+    try {
+      final response = await _dio.post(
+        _cleanUrl('/services/authentication/token.json'),
+        data: {
+          'grant_type': 'key',
+          'username': key.username,
+          'key_id': key.keyId,
+          'timestamp': timestamp,
+          'nonce': nonce,
+          'signature': signature,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {'X-tokentype': 'entermedia'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      final result = LoginResult.fromJson(_decodeMap(response.data));
+      if (!result.isSuccess || result.token == null) {
+        debugPrint(
+          '[AuthService] refreshToken rejected: ${result.errorMessage}',
+        );
+        return false;
+      }
+      await SharedPref.saveEMKey(result.token!);
+      currentToken = result.token;
+      if (result.user != null) {
+        await SharedPref.saveEmUser(result.user!);
+        currentUserId = result.user!.username;
+      }
+      return true;
+    } catch (e, stack) {
+      debugPrint('[AuthService] refreshToken error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'AuthService.refreshToken failed',
+      );
+      return false;
     }
   }
 
@@ -271,7 +356,11 @@ class AuthService implements IAuthService {
           return user;
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Token expired/invalid
+        // Bearer token expired (7 days) or revoked: sign in again with the
+        // device key; only a rejected key means the user must use a new code.
+        if (await refreshToken()) {
+          return await checkAuthSession();
+        }
         await logout();
         return null;
       }
@@ -424,9 +513,38 @@ class AuthService implements IAuthService {
 
   @override
   Future<void> logout() async {
+    await _revokeDeviceKey();
     await SharedPref.resetValues();
     await DioUtil.clearCookies();
     currentUserId = null;
     currentToken = null;
+  }
+
+  /// Revokes this device's key on the server (best effort, the token may
+  /// already be dead) and deletes the private key from the device.
+  Future<void> _revokeDeviceKey() async {
+    final key = await _keyStore.read();
+    if (key == null) return;
+    final token = await getAuthToken();
+    if (token != null && token.isNotEmpty) {
+      try {
+        await _dio.post(
+          _cleanUrl('/services/authentication/revokekey.json'),
+          data: {'keyid': key.keyId},
+          options: Options(
+            contentType: Headers.formUrlEncodedContentType,
+            headers: {
+              'X-tokentype': 'entermedia',
+              'Authorization': 'Bearer $token',
+            },
+            sendTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+          ),
+        );
+      } catch (e) {
+        debugPrint('[AuthService] revokekey failed: $e');
+      }
+    }
+    await _keyStore.clear();
   }
 }

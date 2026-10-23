@@ -5,9 +5,5 @@ class AppConfig {
   final ThemeData? lightTheme;
   final ThemeData? darkTheme;
 
-  const AppConfig({
-    required this.appTitle,
-    this.lightTheme,
-    this.darkTheme,
-  });
+  const AppConfig({required this.appTitle, this.lightTheme, this.darkTheme});
 }
