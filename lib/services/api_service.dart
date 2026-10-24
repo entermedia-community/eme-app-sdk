@@ -114,6 +114,16 @@ abstract class IApiService {
   /// Opens the event's chat channel and returns its id
   /// (`emeevent/connectchat.json`).
   Future<String> connectEventChat(String eventId);
+
+  /// Creates a public event hosted by the signed-in user
+  /// (`emeevent/create.json`) and returns it.
+  Future<EventModel> createEvent({
+    required String name,
+    required DateTime startDate,
+    DateTime? endDate,
+    String? description,
+    String? location,
+  });
 }
 
 /// Concrete implementation of the API Service
@@ -1435,5 +1445,48 @@ class ApiService implements IApiService {
       );
     }
     return channel;
+  }
+
+  /// ISO 8601 with the UTC offset, the format `emeevent/create.json` parses.
+  static String _isoWithOffset(DateTime date) {
+    final local = date.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final abs = offset.abs();
+    return '${local.year.toString().padLeft(4, '0')}-${two(local.month)}-'
+        '${two(local.day)}T${two(local.hour)}:${two(local.minute)}:'
+        '${two(local.second)}$sign${two(abs.inHours)}:'
+        '${two(abs.inMinutes.remainder(60))}';
+  }
+
+  @override
+  Future<EventModel> createEvent({
+    required String name,
+    required DateTime startDate,
+    DateTime? endDate,
+    String? description,
+    String? location,
+  }) async {
+    final data = await _getModuleJson(
+      'emeevent',
+      'create.json',
+      query: {
+        'name': name,
+        'startdate': _isoWithOffset(startDate),
+        if (endDate != null) 'enddate': _isoWithOffset(endDate),
+        if (description != null && description.isNotEmpty)
+          'eventdescription': description,
+        if (location != null && location.isNotEmpty) 'eventlocation': location,
+      },
+      reason: 'createEvent',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final error = (data['response'] as Map?)?['error'];
+      throw Exception('Create event: ${error ?? 'failed'}');
+    }
+    final eventId = data['eventid']?.toString() ?? '';
+    if (eventId.isEmpty) throw Exception('Create event: no event id');
+    return fetchEvent(eventId);
   }
 }

@@ -11,6 +11,10 @@ class ServerModel {
   final Color secondaryColor;
   final int memberCount;
   final bool isJoined;
+
+  /// The signed-in user owns this server (`isowner`), so may create events
+  /// for it.
+  final bool isOwner;
   final List<String> servicesOffered;
   final String? avatarUrl;
   final String? lastNotification;
@@ -42,6 +46,7 @@ class ServerModel {
     this.secondaryColor = const Color(0xFFEFF6FF),
     this.memberCount = 120,
     this.isJoined = false,
+    this.isOwner = false,
     this.servicesOffered = const [],
     this.avatarUrl,
     this.lastNotification,
@@ -61,6 +66,7 @@ class ServerModel {
     Color? secondaryColor,
     int? memberCount,
     bool? isJoined,
+    bool? isOwner,
     List<String>? servicesOffered,
     String? avatarUrl,
     String? lastNotification,
@@ -79,6 +85,7 @@ class ServerModel {
       secondaryColor: secondaryColor ?? this.secondaryColor,
       memberCount: memberCount ?? this.memberCount,
       isJoined: isJoined ?? this.isJoined,
+      isOwner: isOwner ?? this.isOwner,
       servicesOffered: servicesOffered ?? this.servicesOffered,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       lastNotification: lastNotification ?? this.lastNotification,
@@ -117,6 +124,7 @@ class ServerModel {
     final isJoined = _parseBool(
       json['isJoined'] ?? json['joined'] ?? json['is_joined'],
     );
+    final isOwner = _parseBool(json['isOwner'] ?? json['isowner']);
     final servicesOffered = _parseList(
       json['servicesOffered'] ??
           json['servicesoffered'] ??
@@ -166,6 +174,7 @@ class ServerModel {
       secondaryColor: secondaryColor,
       memberCount: memberCount,
       isJoined: isJoined,
+      isOwner: isOwner,
       servicesOffered: servicesOffered,
       avatarUrl: avatarUrl,
       lastNotification: lastNotification,
@@ -249,6 +258,7 @@ class ServerModel {
       'secondaryColor': secondaryColor.toARGB32(),
       'memberCount': memberCount,
       'isJoined': isJoined,
+      'isOwner': isOwner,
       'servicesOffered': servicesOffered,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
       if (lastNotification != null) 'lastNotification': lastNotification,

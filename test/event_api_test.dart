@@ -120,4 +120,62 @@ void main() {
     );
     expect(missing.connectEventChat('e1'), throwsException);
   });
+
+  test('createEvent sends ISO dates and returns the created event', () async {
+    final seen = <RequestOptions>[];
+    final api = apiWith((o) {
+      seen.add(o);
+      if (o.path.contains('create.json')) {
+        return {
+          'response': {'status': 'ok'},
+          'eventid': 'e9',
+        };
+      }
+      return {
+        'events': [
+          {'id': 'e9', 'name': 'Potluck', 'myrsvp': 'going'},
+        ],
+      };
+    });
+
+    final event = await api.createEvent(
+      name: 'Potluck',
+      startDate: DateTime.utc(2026, 11, 2, 18),
+      location: 'Park',
+    );
+
+    final create = seen.first.queryParameters;
+    expect(create['name'], 'Potluck');
+    expect(create['eventlocation'], 'Park');
+    expect(create.containsKey('enddate'), isFalse);
+    expect(
+      create['startdate'],
+      matches(RegExp(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$')),
+    );
+    expect(event.id, 'e9');
+    expect(event.myRsvp, EventRsvp.going);
+  });
+
+  test('createEvent throws the server error', () async {
+    final api = apiWith(
+      (_) => {
+        'response': {'status': 'error', 'error': 'name is required'},
+      },
+    );
+    expect(
+      api.createEvent(name: '', startDate: DateTime.now()),
+      throwsException,
+    );
+  });
+
+  test('ServerModel reads isowner', () {
+    final owner = ServerModel.fromJson({
+      'id': 's1',
+      'name': 'Lakeview',
+      'isowner': true,
+    });
+    final member = ServerModel.fromJson({'id': 's2', 'name': 'Other'});
+    expect(owner.isOwner, isTrue);
+    expect(member.isOwner, isFalse);
+  });
 }
