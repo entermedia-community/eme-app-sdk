@@ -96,6 +96,24 @@ abstract class IApiService {
     bool? onTheTeam,
     List<String>? roleIds,
   });
+
+  /// Events (`emeevent/events.json`), newest start first. [query] filters by
+  /// name; [rsvpedOnly] keeps the events the signed-in user answered.
+  Future<List<EventModel>> fetchEvents({
+    String? query,
+    bool rsvpedOnly = false,
+  });
+
+  /// One event with its counts and the user's response.
+  Future<EventModel> fetchEvent(String eventId);
+
+  /// Sets (or with [EventRsvp.none] clears) the user's response
+  /// (`emeevent/rsvp.json`).
+  Future<EventRsvpResult> setEventRsvp(String eventId, EventRsvp rsvp);
+
+  /// Opens the event's chat channel and returns its id
+  /// (`emeevent/connectchat.json`).
+  Future<String> connectEventChat(String eventId);
 }
 
 /// Concrete implementation of the API Service
@@ -1142,6 +1160,22 @@ class ApiService implements IApiService {
     String? baseUrl,
     Map<String, dynamic>? query,
     required String reason,
+  }) => _getModuleJson(
+    'librarycollection',
+    path,
+    baseUrl: baseUrl,
+    query: query,
+    reason: reason,
+  );
+
+  /// GETs a `services/module/<module>/<path>` service and returns the decoded
+  /// JSON map. Throws on network errors or a non-map response.
+  Future<Map<String, dynamic>> _getModuleJson(
+    String module,
+    String path, {
+    String? baseUrl,
+    Map<String, dynamic>? query,
+    required String reason,
   }) async {
     final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
         ? (baseUrl.endsWith('/')
@@ -1149,7 +1183,7 @@ class ApiService implements IApiService {
               : baseUrl)
         : _cleanBaseUrl;
     final token = await SharedPref.getEMKey() ?? AuthService.token;
-    final primaryUrl = '$cleanBase/services/module/librarycollection/$path';
+    final primaryUrl = '$cleanBase/services/module/$module/$path';
 
     debugPrint('[ApiService] $reason GET URL: $primaryUrl $query');
     try {
@@ -1324,5 +1358,82 @@ class ApiService implements IApiService {
       final error = response is Map ? response['error'] : null;
       throw Exception(error ?? 'Could not update team member');
     }
+  }
+
+  // ==========================================
+  // EVENTS
+  // ==========================================
+
+  @override
+  Future<List<EventModel>> fetchEvents({
+    String? query,
+    bool rsvpedOnly = false,
+  }) async {
+    final data = await _getModuleJson(
+      'emeevent',
+      'events.json',
+      query: {
+        if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+        if (rsvpedOnly) 'rsvped': 'true',
+      },
+      reason: 'fetchEvents',
+    );
+    final events = data['events'];
+    if (events is! List) {
+      throw Exception('Events: ${_responseStatus(data) ?? 'no events'}');
+    }
+    return events
+        .whereType<Map<String, dynamic>>()
+        .map(EventModel.fromJson)
+        .toList();
+  }
+
+  @override
+  Future<EventModel> fetchEvent(String eventId) async {
+    final data = await _getModuleJson(
+      'emeevent',
+      'events.json',
+      query: {'eventid': eventId},
+      reason: 'fetchEvent',
+    );
+    final events = data['events'];
+    if (events is List && events.isNotEmpty && events.first is Map) {
+      return EventModel.fromJson(
+        Map<String, dynamic>.from(events.first as Map),
+      );
+    }
+    throw Exception('Event $eventId: not found');
+  }
+
+  @override
+  Future<EventRsvpResult> setEventRsvp(String eventId, EventRsvp rsvp) async {
+    final data = await _getModuleJson(
+      'emeevent',
+      'rsvp.json',
+      query: {'eventid': eventId, 'status': rsvp.name},
+      reason: 'setEventRsvp',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final error = (data['response'] as Map?)?['error'];
+      throw Exception('RSVP $eventId: ${error ?? 'failed'}');
+    }
+    return EventRsvpResult.fromJson(data);
+  }
+
+  @override
+  Future<String> connectEventChat(String eventId) async {
+    final data = await _getModuleJson(
+      'emeevent',
+      'connectchat.json',
+      query: {'eventid': eventId},
+      reason: 'connectEventChat',
+    );
+    final channel = data['channel']?.toString() ?? '';
+    if (channel.isEmpty) {
+      throw Exception(
+        'Event chat $eventId: ${_responseStatus(data) ?? 'no channel'}',
+      );
+    }
+    return channel;
   }
 }

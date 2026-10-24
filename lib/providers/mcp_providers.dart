@@ -376,6 +376,8 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
   final joinedServers = ref.watch(userServersProvider).valueOrNull ?? const [];
   // Same for the projects the user is on the team of.
   final projects = ref.watch(userProjectsProvider).valueOrNull ?? const [];
+  // And the events the user answered Interested or Going to.
+  final events = ref.watch(userEventsProvider).valueOrNull ?? const [];
 
   List<UnifiedChatItem> buildMcpItems() {
     final List<UnifiedChatItem> items = [];
@@ -426,6 +428,11 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
       // Add projects (librarycollections the user is on the team of)
       for (final project in projects) {
         combined.add(UnifiedChatItem.fromProject(collection: project));
+      }
+
+      // Add events the user responded to
+      for (final event in events) {
+        combined.add(UnifiedChatItem.fromEvent(event));
       }
 
       // Sort with latest message on top

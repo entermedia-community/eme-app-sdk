@@ -99,6 +99,39 @@ final projectChatConnectionProvider =
       return api.connectProjectChat(collectionId);
     });
 
+/// Events the signed-in user answered Interested or Going to (chat list).
+final userEventsProvider = FutureProvider<List<EventModel>>((ref) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchEvents(rsvpedOnly: true);
+});
+
+/// Events matching a search [query] (all events when empty).
+final eventSearchProvider = FutureProvider.family<List<EventModel>, String>((
+  ref,
+  query,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchEvents(query: query);
+});
+
+/// One event with its counts and the user's response.
+final eventProvider = FutureProvider.family<EventModel, String>((
+  ref,
+  eventId,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.fetchEvent(eventId);
+});
+
+/// An event's chat channel id.
+final eventChatChannelProvider = FutureProvider.family<String, String>((
+  ref,
+  eventId,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.connectEventChat(eventId);
+});
+
 /// FutureProvider for the roles a project team member can have.
 final projectTeamRolesProvider = FutureProvider<List<ProjectTeamRole>>((
   ref,

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'chat_model.dart';
+import 'event_model.dart';
 import 'library_collection_model.dart';
 import 'mcp_conversation_model.dart';
 import 'mcp_server_model.dart';
 import 'server_model.dart';
 
-enum ChatItemType { user, mcp, server, project }
+enum ChatItemType { user, mcp, server, project, event }
 
 /// A unified wrapper model for a row in the Chats list: a User Chat, an MCP
 /// Server Chat, a joined EME Server, or a Project.
@@ -15,27 +16,31 @@ class UnifiedChatItem {
   final McpConversationModel? mcpConversation;
   final ServerModel? emeServer;
   final LibraryCollectionModel? projectCollection;
+  final EventModel? event;
 
   const UnifiedChatItem.fromUser(ChatModel chat)
     : type = ChatItemType.user,
       userChat = chat,
       mcpConversation = null,
       emeServer = null,
-      projectCollection = null;
+      projectCollection = null,
+      event = null;
 
   const UnifiedChatItem.fromMcp(McpConversationModel conversation)
     : type = ChatItemType.mcp,
       userChat = null,
       mcpConversation = conversation,
       emeServer = null,
-      projectCollection = null;
+      projectCollection = null,
+      event = null;
 
   const UnifiedChatItem.fromServer(ServerModel server)
     : type = ChatItemType.server,
       userChat = null,
       mcpConversation = null,
       emeServer = server,
-      projectCollection = null;
+      projectCollection = null,
+      event = null;
 
   /// A project: a `librarycollection` from `viewprojects.json`, or an EME
   /// Server whose category is "project". At least one must be given.
@@ -47,14 +52,24 @@ class UnifiedChatItem {
        userChat = null,
        mcpConversation = null,
        emeServer = server,
-       projectCollection = collection;
+       projectCollection = collection,
+       event = null;
+
+  const UnifiedChatItem.fromEvent(EventModel this.event)
+    : type = ChatItemType.event,
+      userChat = null,
+      mcpConversation = null,
+      emeServer = null,
+      projectCollection = null;
 
   bool get isMcp => type == ChatItemType.mcp;
   bool get isUser => type == ChatItemType.user;
   bool get isServer => type == ChatItemType.server;
   bool get isProject => type == ChatItemType.project;
+  bool get isEvent => type == ChatItemType.event;
 
   String get id {
+    if (isEvent) return 'event_${event!.id}';
     if (isProject) {
       return projectCollection != null
           ? 'project_${projectCollection!.id}'
@@ -67,6 +82,7 @@ class UnifiedChatItem {
   }
 
   String get displayName {
+    if (isEvent) return event!.name;
     if (isProject) {
       if (projectCollection != null && projectCollection!.name.isNotEmpty) {
         return projectCollection!.name;
@@ -78,6 +94,7 @@ class UnifiedChatItem {
   }
 
   String get subtitle {
+    if (isEvent) return event!.location.isNotEmpty ? event!.location : 'Event';
     if (isProject) {
       return emeServer?.subtitle ?? emeServer?.category.name ?? 'Project';
     }
@@ -86,6 +103,7 @@ class UnifiedChatItem {
   }
 
   String get lastMessage {
+    if (isEvent) return event!.description;
     if (isProject) {
       if (projectCollection != null) {
         return projectCollection!.displayDescription;
@@ -110,6 +128,7 @@ class UnifiedChatItem {
   }
 
   String get time {
+    if (isEvent) return '';
     if (isProject) {
       return emeServer?.lastNotificationTime ?? '';
     }
@@ -122,7 +141,9 @@ class UnifiedChatItem {
 
   DateTime get timestamp {
     // Projects and servers have no real-time last-message socket yet; keep below active chats
-    if (isProject || isServer) return DateTime.fromMillisecondsSinceEpoch(0);
+    if (isProject || isServer || isEvent) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
     if (isMcp) {
       return mcpConversation!.lastMessageTime;
     }
@@ -131,11 +152,12 @@ class UnifiedChatItem {
   }
 
   int get unreadCount {
-    if (isProject || isServer) return 0;
+    if (isProject || isServer || isEvent) return 0;
     return isMcp ? mcpConversation!.unreadCount : userChat!.unreadCount;
   }
 
   Color get avatarColor {
+    if (isEvent) return const Color(0xFFEA580C);
     if (isProject) {
       return emeServer?.primaryColor ?? const Color(0xFF3B82F6);
     }
@@ -144,6 +166,17 @@ class UnifiedChatItem {
   }
 
   String get avatarInitials {
+    if (isEvent) {
+      final words = event!.name.trim().split(RegExp(r'\s+'));
+      if (words.length >= 2 && words[0].isNotEmpty && words[1].isNotEmpty) {
+        return (words[0][0] + words[1][0]).toUpperCase();
+      }
+      return event!.name.isEmpty
+          ? 'EV'
+          : event!.name
+                .substring(0, event!.name.length.clamp(1, 2))
+                .toUpperCase();
+    }
     if (isProject) {
       if (projectCollection != null && projectCollection!.name.isNotEmpty) {
         final words = projectCollection!.name.trim().split(RegExp(r'\s+'));
@@ -163,6 +196,7 @@ class UnifiedChatItem {
   }
 
   String? get avatarUrl {
+    if (isEvent) return event!.imageUrl;
     if (isProject) {
       return projectCollection?.primaryImageUrl ?? emeServer?.avatarUrl;
     }
@@ -171,7 +205,7 @@ class UnifiedChatItem {
   }
 
   bool get isOnline {
-    if (isProject || isServer) return false;
+    if (isProject || isServer || isEvent) return false;
     return isMcp
         ? mcpConversation!.server.status == McpServerStatus.connected
         : userChat!.isOnline;
