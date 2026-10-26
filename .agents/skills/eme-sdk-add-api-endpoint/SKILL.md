@@ -11,7 +11,7 @@ Read the `eme-sdk-overview` skill first if you haven't already.
 
 Before you write code, get the endpoint path, HTTP method, params and a real response sample
 from the user (or from a curl against the dev server — default dev mediadb is
-`http://localhost.com:8080/site/mediadb`). **Don't guess at a response shape and never return
+`http://localhost:8080/site/mediadb`). **Don't guess at a response shape and never return
 mock data if the endpoint isn't ready** (AGENTS.md). If the backend isn't built yet, ask.
 
 ## 1. Model (if needed) — `lib/models/<name>_model.dart`
@@ -77,6 +77,7 @@ Future<List<WidgetThing>> fetchWidgetThings(String serverId) async {
 ```
 
 Notes:
+
 - `DioUtil.dio` accepts every status code, so the explicit status check is required.
 - Prefer throwing over the older `catch → return []` style. Record it first with
   `AppErrorHandler.recordNonFatal(e, stack, reason: 'ApiService.x failed', customKeys: {...})` if
