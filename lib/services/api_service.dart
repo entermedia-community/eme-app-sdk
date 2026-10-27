@@ -145,17 +145,17 @@ class ApiService implements IApiService {
       _dio = dio ?? DioUtil.dio;
 
   String get _cleanBaseUrl {
-    var base = config.baseUrl.trim();
-    if (base.isEmpty) {
-      base = (OpenI.instance?.settings.mediadb ?? '').trim();
+    var baseUri = config.baseUrl.trim();
+    if (baseUri.isEmpty) {
+      baseUri = (OpenI.instance?.settings.mediadb ?? '').trim();
     }
-    if (base.isEmpty) {
-      base = 'http://localhost:8080/site/mediadb';
+    if (baseUri.isEmpty) {
+      baseUri = '/site/mediadb';
     }
-    if (base.endsWith('/')) {
-      base = base.substring(0, base.length - 1);
+    if (baseUri.endsWith('/')) {
+      baseUri = baseUri.substring(0, baseUri.length - 1);
     }
-    return base;
+    return baseUri;
   }
 
   /// Helper to perform HTTP GET requests
