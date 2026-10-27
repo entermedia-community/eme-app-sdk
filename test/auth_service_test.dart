@@ -361,10 +361,16 @@ void main() {
         code: '654321',
       );
 
+      // An app restart keeps only the saved key
+      final savedKey = AuthService.currentToken;
+      AuthService.currentToken = null;
+
       // Verify checkAuthSession recovers user
       final activeUser = await authService.checkAuthSession();
       expect(activeUser, isNotNull);
       expect(activeUser?.email, 'bob@emeworld.org');
+      // ChatSocketService reads the token from here
+      expect(AuthService.token, savedKey);
     });
 
     test('SendUserCodeResult and LoginResult JSON parsing', () {

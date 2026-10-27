@@ -301,8 +301,12 @@ class AuthService implements IAuthService {
     final token = await getAuthToken();
     if (token == null || token.trim().isEmpty) {
       currentUserId = null;
+      currentToken = null;
       return null;
     }
+    // A restored session only has the saved key; ChatSocketService (chat
+    // connect.json, the socket) reads it from here.
+    currentToken = token;
 
     final cachedUser = await getCurrentUser();
     if (cachedUser != null) {

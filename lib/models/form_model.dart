@@ -21,7 +21,8 @@ enum FormFieldType {
   boolean,
   select,
   radio,
-  checkbox;
+  checkbox,
+  hidden;
 
   factory FormFieldType.fromName(String? name) {
     if (name == null || name.trim().isEmpty) {

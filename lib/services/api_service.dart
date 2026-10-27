@@ -8,6 +8,7 @@ import '../openinsitute_core.dart';
 import '../utils/dio.dart';
 import '../utils/error_handler.dart';
 import 'chat_cache_manager.dart';
+import 'chat_socket_service.dart';
 import 'shared_preferences.dart';
 
 /// Configuration for the API Service
@@ -110,6 +111,14 @@ abstract class IApiService {
   /// Sets (or with [EventRsvp.none] clears) the user's response
   /// (`emeevent/rsvp.json`).
   Future<EventRsvpResult> setEventRsvp(String eventId, EventRsvp rsvp);
+
+  /// Opens the EME Server's chat channel and returns its id
+  /// (`chat/connect.json`). [params] carry a tapped action's data, which can
+  /// move the chat to another channel.
+  Future<String> connectServerChat(
+    String serverId, {
+    Map<String, dynamic>? params,
+  });
 
   /// Opens the event's chat channel and returns its id
   /// (`emeevent/connectchat.json`).
@@ -1428,6 +1437,14 @@ class ApiService implements IApiService {
       throw Exception('RSVP $eventId: ${error ?? 'failed'}');
     }
     return EventRsvpResult.fromJson(data);
+  }
+
+  @override
+  Future<String> connectServerChat(
+    String serverId, {
+    Map<String, dynamic>? params,
+  }) {
+    return ChatSocketService().connectChat(serverId, params: params);
   }
 
   @override

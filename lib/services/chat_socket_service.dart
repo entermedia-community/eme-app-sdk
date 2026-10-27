@@ -29,7 +29,7 @@ class ChatSocketService {
   String? _channelType;
   String? _sessionId;
   String? _baseUrl;
-  String? _entermediakey;
+  String? _entermediaKey;
   bool _isDisposed = false;
 
   String _catalogId = '';
@@ -46,7 +46,6 @@ class ChatSocketService {
   String get currentChannelId => _channelId;
   String get currentUserId => _userId;
 
-  /// Make a POST request to /services/module/user/connect.json with fromuser and touser payload.
   /// Returns the channel Map with 'id', 'name', etc., or null if unsuccessful.
   Future<String> connectUser({
     required String fromUser,
@@ -116,7 +115,6 @@ class ChatSocketService {
     }
   }
 
-  /// Make a POST request to /services/chat/connect.json with channel/serverid payload.
   /// Returns the channel string or fallback.
   Future<String> connectChat(
     String serverId, {
@@ -209,7 +207,7 @@ class ChatSocketService {
     _sessionId = _generateSessionId();
 
     _userId = _resolveUserId(userId);
-    _entermediakey = _resolveToken(token);
+    _entermediaKey = _resolveToken(token);
     _catalogId = _resolveCatalogId(catalogId);
 
     if (_baseUrl == null || _baseUrl!.isEmpty || _userId.isEmpty) {
@@ -527,7 +525,7 @@ class ChatSocketService {
   }
 
   Uri _buildWebSocketUri() {
-    final key = _entermediakey;
+    final key = _entermediaKey;
     return Uri.parse(_baseUrl!).replace(
       queryParameters: <String, String>{
         'sessionid': _sessionId!,
