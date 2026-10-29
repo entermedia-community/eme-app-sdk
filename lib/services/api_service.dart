@@ -125,6 +125,16 @@ abstract class IApiService {
     String? query,
   });
 
+  /// Uploads [file] as a new entity asset of the project [collectionId], else
+  /// of the signed-in user's profile (`entityasset/upload.json`). Throws the
+  /// server's error when it refuses the file.
+  Future<void> uploadEntityAsset(
+    MultipartFile file, {
+    String? collectionId,
+    String? name,
+    String? description,
+  });
+
   /// Events (`emeevent/events.json`), newest start first. [query] filters by
   /// name; [rsvpedOnly] keeps the events the signed-in user answered.
   Future<List<EventModel>> fetchEvents({
@@ -1488,6 +1498,62 @@ class ApiService implements IApiService {
         .whereType<Map<String, dynamic>>()
         .map(EntityAssetModel.fromJson)
         .toList();
+  }
+
+  @override
+  Future<void> uploadEntityAsset(
+    MultipartFile file, {
+    String? collectionId,
+    String? name,
+    String? description,
+  }) async {
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final url = '$_cleanBaseUrl/services/module/entityasset/upload.json';
+    final form = FormData();
+    if (collectionId != null) {
+      form.fields.add(MapEntry('collectionid', collectionId));
+    }
+    if (name != null && name.trim().isNotEmpty) {
+      form.fields.add(MapEntry('name', name.trim()));
+    }
+    if (description != null && description.trim().isNotEmpty) {
+      form.fields.add(MapEntry('longdescription', description.trim()));
+    }
+    form.files.add(MapEntry('file', file));
+
+    debugPrint('[ApiService] uploadEntityAsset POST URL: $url');
+    try {
+      final response = await _dio.post(
+        url,
+        data: form,
+        options: Options(
+          headers: {
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+          sendTimeout: const Duration(minutes: 5),
+          receiveTimeout: const Duration(minutes: 2),
+        ),
+      );
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) data = jsonDecode(data);
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Upload: unexpected response');
+      }
+      if (_responseStatus(data) != 'ok') {
+        final error = (data['response'] as Map?)?['error'];
+        throw Exception(error ?? 'Upload failed');
+      }
+    } catch (e, stack) {
+      debugPrint('[ApiService] uploadEntityAsset error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.uploadEntityAsset failed',
+        customKeys: {'url': url},
+      );
+      rethrow;
+    }
   }
 
   @override
