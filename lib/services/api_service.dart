@@ -1551,6 +1551,9 @@ class ApiService implements IApiService {
       final response = await _dio.post(
         url,
         data: form,
+        // Also in the URL: unlike multipart form fields, query parameters need
+        // no parsing on the server, so the target can never be missed.
+        queryParameters: {'collectionid': ?collectionId},
         options: Options(
           headers: {
             if (token != null && token.isNotEmpty)
