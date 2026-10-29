@@ -140,6 +140,7 @@ abstract class IApiService {
     String? collectionId,
     String? name,
     String? description,
+    List<String> tags = const [],
   });
 
   /// Events (`emeevent/events.json`), newest start first. [query] filters by
@@ -1531,6 +1532,7 @@ class ApiService implements IApiService {
     String? collectionId,
     String? name,
     String? description,
+    List<String> tags = const [],
   }) async {
     final token = await SharedPref.getEMKey() ?? AuthService.token;
     final url = '$_cleanBaseUrl/services/module/entityasset/upload.json';
@@ -1543,6 +1545,9 @@ class ApiService implements IApiService {
     }
     if (description != null && description.trim().isNotEmpty) {
       form.fields.add(MapEntry('longdescription', description.trim()));
+    }
+    for (final tag in tags) {
+      form.fields.add(MapEntry('tags', tag));
     }
     form.files.add(MapEntry('file', file));
 
