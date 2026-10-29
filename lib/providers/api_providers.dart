@@ -100,6 +100,23 @@ final projectChatConnectionProvider =
       return api.connectProjectChat(collectionId);
     });
 
+/// Key for [entityAssetsProvider]: a project, else a profile, else (both
+/// null) the signed-in user.
+typedef EntityAssetsKey = ({String? collectionId, String? userId});
+
+/// Entity assets of a project or profile.
+final entityAssetsProvider =
+    FutureProvider.family<List<EntityAssetModel>, EntityAssetsKey>((
+      ref,
+      key,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchEntityAssets(
+        collectionId: key.collectionId,
+        userId: key.userId,
+      );
+    });
+
 /// Events the signed-in user answered Interested or Going to (chat list).
 final userEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);

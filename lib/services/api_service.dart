@@ -116,6 +116,15 @@ abstract class IApiService {
     String? category,
   });
 
+  /// Entity assets (`entityasset/assets.json`), newest first: those of the
+  /// project [collectionId], else of the EME profile owned by the user [userId] (the signed-in
+  /// user when both are null). [query] filters by name.
+  Future<List<EntityAssetModel>> fetchEntityAssets({
+    String? userId,
+    String? collectionId,
+    String? query,
+  });
+
   /// Events (`emeevent/events.json`), newest start first. [query] filters by
   /// name; [rsvpedOnly] keeps the events the signed-in user answered.
   Future<List<EventModel>> fetchEvents({
@@ -1452,6 +1461,34 @@ class ApiService implements IApiService {
   // ==========================================
   // EVENTS
   // ==========================================
+
+  @override
+  Future<List<EntityAssetModel>> fetchEntityAssets({
+    String? userId,
+    String? collectionId,
+    String? query,
+  }) async {
+    final data = await _getModuleJson(
+      'entityasset',
+      'assets.json',
+      query: {
+        'collectionid': ?collectionId,
+        'userid': ?userId,
+        if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+      },
+      reason: 'fetchEntityAssets',
+    );
+    final assets = data['assets'];
+    if (assets is! List) {
+      final response = data['response'];
+      final error = response is Map ? response['error'] : null;
+      throw Exception(error ?? 'Entity assets: no assets');
+    }
+    return assets
+        .whereType<Map<String, dynamic>>()
+        .map(EntityAssetModel.fromJson)
+        .toList();
+  }
 
   @override
   Future<List<EventModel>> fetchEvents({

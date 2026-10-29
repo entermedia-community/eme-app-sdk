@@ -3,6 +3,7 @@ export 'chat_model.dart';
 export 'em_data.dart';
 export 'em_logo.dart';
 export 'em_user.dart';
+export 'entity_asset_model.dart';
 export 'event_model.dart';
 export 'eme_profile_model.dart';
 export 'file_item_model.dart';

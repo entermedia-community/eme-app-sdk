@@ -499,7 +499,7 @@ void main() {
         final authService = AuthService(
           dio: createMockAuthDio(),
           keyStore: MemoryKeyStore(),
-        firebaseStore: MemoryFirebaseStore(),
+          firebaseStore: MemoryFirebaseStore(),
         );
         final results = await authService.searchUsers('admin');
         expect(results.isNotEmpty, true);
