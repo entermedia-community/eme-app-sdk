@@ -12,6 +12,36 @@ class MemoryKeyStore implements DeviceKeyStore {
   Future<void> clear() async => key = null;
 }
 
+class MemoryFirebaseStore implements FirebaseCredentialStore {
+  FirebaseCredentials? credentials;
+  @override
+  Future<FirebaseCredentials?> read() async => credentials;
+  @override
+  Future<void> save(FirebaseCredentials credentials) async =>
+      this.credentials = credentials;
+  @override
+  Future<void> clear() async => credentials = null;
+}
+
+class FakePushSubscriber implements UserPushSubscriber {
+  final signedIn = <String>[];
+  final signedOut = <String?>[];
+
+  @override
+  Future<String?> signInAndSubscribe({
+    required String email,
+    required String firebasePassword,
+    required String userId,
+  }) async {
+    signedIn.add('$email:$firebasePassword:$userId');
+    return null;
+  }
+
+  @override
+  Future<void> signOutAndUnsubscribe(String? userId) async =>
+      signedOut.add(userId);
+}
+
 Dio createMockAuthDio() {
   final dio = Dio();
   dio.interceptors.add(
@@ -92,6 +122,7 @@ Dio createMockAuthDio() {
                 'access_token': 'token_${email.split('@').first}',
                 'token_type': 'Bearer',
                 'key_id': 'key_1',
+                'firebasepassword': 'fb_pass_${email.split('@').first}',
                 'user': {
                   'username': 'usr_${email.split('@').first}',
                   'email': email,
@@ -260,6 +291,7 @@ void main() {
       final authService = AuthService(
         dio: createMockAuthDio(),
         keyStore: MemoryKeyStore(),
+        firebaseStore: MemoryFirebaseStore(),
       );
 
       // 1. Success case
@@ -287,6 +319,7 @@ void main() {
       final authService = AuthService(
         dio: createMockAuthDio(),
         keyStore: MemoryKeyStore(),
+        firebaseStore: MemoryFirebaseStore(),
       );
 
       // 1. Invalid code
@@ -327,6 +360,7 @@ void main() {
         final authService = AuthService(
           dio: createMockAuthDio(),
           keyStore: store,
+          firebaseStore: MemoryFirebaseStore(),
         );
         expect(await authService.refreshToken(), false);
 
@@ -345,10 +379,49 @@ void main() {
       },
     );
 
+    test('loginWithCode keeps the Firebase login until logout', () async {
+      final firebaseStore = MemoryFirebaseStore();
+      final authService = AuthService(
+        dio: createMockAuthDio(),
+        keyStore: MemoryKeyStore(),
+        firebaseStore: firebaseStore,
+      );
+
+      final res = await authService.loginWithCode(
+        email: 'Dave@emeworld.org',
+        code: '333444',
+      );
+      expect(res.firebasePassword, 'fb_pass_dave');
+
+      final saved = await authService.getFirebaseCredentials();
+      expect(saved?.email, 'dave@emeworld.org');
+      expect(saved?.password, 'fb_pass_dave');
+
+      await authService.logout();
+      expect(await authService.getFirebaseCredentials(), isNull);
+    });
+
+    test('AuthNotifier subscribes to push after login and on logout', () async {
+      final push = FakePushSubscriber();
+      final authService = AuthService(
+        dio: createMockAuthDio(),
+        keyStore: MemoryKeyStore(),
+        firebaseStore: MemoryFirebaseStore(),
+      );
+      final notifier = AuthNotifier(authService: authService, push: push);
+
+      await notifier.loginWithCode(email: 'erin@emeworld.org', code: '555666');
+      expect(push.signedIn, ['erin@emeworld.org:fb_pass_erin:usr_erin']);
+
+      await notifier.logout();
+      expect(push.signedOut, ['usr_erin']);
+    });
+
     test('checkAuthSession verifies cached session', () async {
       final authService = AuthService(
         dio: createMockAuthDio(),
         keyStore: MemoryKeyStore(),
+        firebaseStore: MemoryFirebaseStore(),
       );
 
       // Initially no session
@@ -426,6 +499,7 @@ void main() {
         final authService = AuthService(
           dio: createMockAuthDio(),
           keyStore: MemoryKeyStore(),
+        firebaseStore: MemoryFirebaseStore(),
         );
         final results = await authService.searchUsers('admin');
         expect(results.isNotEmpty, true);

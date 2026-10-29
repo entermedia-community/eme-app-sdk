@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -118,8 +119,27 @@ class PushNotificationMessage {
       'PushNotificationMessage(title: $title, body: $body, type: $type, data: $data)';
 }
 
+/// Ties a signed-in EME user to push notifications. Implemented by
+/// [PushNotificationService]; tests supply their own.
+abstract class UserPushSubscriber {
+  /// Signs in to Firebase with the credentials the EME server created for
+  /// this user and subscribes to the user's chat topic. Returns an error
+  /// message, or null on success.
+  Future<String?> signInAndSubscribe({
+    required String email,
+    required String firebasePassword,
+    required String userId,
+  });
+
+  Future<void> signOutAndUnsubscribe(String? userId);
+}
+
 /// Core Push Notification Service for Firebase Cloud Messaging
-class PushNotificationService {
+class PushNotificationService implements UserPushSubscriber {
+  /// FCM topic of a user's chat notifications. The server sends to the same
+  /// name (`GoogleManager.userTopic` in eme-server), keep both in sync.
+  static String userTopic(String userId) => 'user_$userId';
+
   static final PushNotificationService instance =
       PushNotificationService._internal();
 
@@ -366,6 +386,47 @@ class PushNotificationService {
       await SharedPref.remove('fcm_token');
     } catch (e) {
       debugPrint('[PushNotificationService] Failed to delete FCM token: $e');
+    }
+  }
+
+  @override
+  Future<String?> signInAndSubscribe({
+    required String email,
+    required String firebasePassword,
+    required String userId,
+  }) async {
+    try {
+      if (Firebase.apps.isEmpty) {
+        return 'Firebase is not initialized';
+      }
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: firebasePassword,
+      );
+      await subscribeToTopic(userTopic(userId));
+      return null;
+    } catch (e, stack) {
+      debugPrint('[PushNotificationService] Firebase sign-in failed: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'PushNotificationService.signInAndSubscribe failed',
+      );
+      return e.toString();
+    }
+  }
+
+  @override
+  Future<void> signOutAndUnsubscribe(String? userId) async {
+    try {
+      if (Firebase.apps.isEmpty) return;
+      if (userId != null && userId.isNotEmpty) {
+        await unsubscribeFromTopic(userTopic(userId));
+      }
+      await FirebaseAuth.instance.signOut();
+      await deleteFcmToken();
+    } catch (e) {
+      debugPrint('[PushNotificationService] Firebase sign-out failed: $e');
     }
   }
 

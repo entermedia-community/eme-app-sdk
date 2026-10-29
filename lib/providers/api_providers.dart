@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -112,6 +113,40 @@ final eventSearchProvider = FutureProvider.family<List<EventModel>, String>((
 ) async {
   final api = ref.watch(apiServiceProvider);
   return api.fetchEvents(query: query);
+});
+
+/// What a unified search looks for: the [query] text (everything when
+/// empty), the [types] to search (all when empty) and an EME server
+/// [category] id. Compared by value so it can key [searchProvider].
+@immutable
+class SearchKey {
+  final String query;
+  final Set<SearchType> types;
+  final String? category;
+
+  const SearchKey({this.query = '', this.types = const {}, this.category});
+
+  @override
+  bool operator ==(Object other) =>
+      other is SearchKey &&
+      other.query == query &&
+      other.category == category &&
+      other.types.length == types.length &&
+      other.types.containsAll(types);
+
+  @override
+  int get hashCode =>
+      Object.hash(query, category, Object.hashAllUnordered(types));
+}
+
+/// People, projects, EME servers and events matching a [SearchKey]
+/// (everything when the query is empty).
+final searchProvider = FutureProvider.family<SearchResults, SearchKey>((
+  ref,
+  key,
+) async {
+  final api = ref.watch(apiServiceProvider);
+  return api.search(query: key.query, types: key.types, category: key.category);
 });
 
 /// One event with its counts and the user's response.

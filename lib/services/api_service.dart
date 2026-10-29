@@ -98,6 +98,16 @@ abstract class IApiService {
     List<String>? roleIds,
   });
 
+  /// One search across people, projects, EME servers and events
+  /// (`emesearch/search.json`). [types] limits what is searched (all when
+  /// null); [category] is an EME server category id, and leaves out projects
+  /// and events, which have no category.
+  Future<SearchResults> search({
+    String? query,
+    Set<SearchType>? types,
+    String? category,
+  });
+
   /// Events (`emeevent/events.json`), newest start first. [query] filters by
   /// name; [rsvpedOnly] keeps the events the signed-in user answered.
   Future<List<EventModel>> fetchEvents({
@@ -1377,6 +1387,36 @@ class ApiService implements IApiService {
       final error = response is Map ? response['error'] : null;
       throw Exception(error ?? 'Could not update team member');
     }
+  }
+
+  // ==========================================
+  // UNIFIED SEARCH
+  // ==========================================
+
+  @override
+  Future<SearchResults> search({
+    String? query,
+    Set<SearchType>? types,
+    String? category,
+  }) async {
+    final data = await _getModuleJson(
+      'emesearch',
+      'search.json',
+      query: {
+        if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+        if (types != null && types.isNotEmpty)
+          'types': types.map((t) => t.name).join(','),
+        if (category != null &&
+            category.trim().isNotEmpty &&
+            category != 'All')
+          'category': category.trim(),
+      },
+      reason: 'search',
+    );
+    if (_responseStatus(data) != 'ok') {
+      throw Exception('Search: ${_responseStatus(data) ?? 'no response'}');
+    }
+    return SearchResults.fromJson(data);
   }
 
   // ==========================================

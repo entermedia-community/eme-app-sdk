@@ -38,6 +38,7 @@ dependencies:
   flutter_cache_manager: ^3.4.5
   cryptography: ^2.9.0
   flutter_secure_storage: ^11.2.0
+  firebase_auth: ^6.7.1
 
 dev_dependencies:
   flutter_test:

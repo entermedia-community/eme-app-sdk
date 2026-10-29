@@ -68,6 +68,10 @@ class LoginResult {
   final String? keyId;
   final String? errorMessage;
 
+  /// Generated password of the Firebase Auth user the server created for this
+  /// account. Null when the server could not set Firebase up.
+  final String? firebasePassword;
+
   String? get entermediakey => token;
 
   const LoginResult({
@@ -76,6 +80,7 @@ class LoginResult {
     this.token,
     this.keyId,
     this.errorMessage,
+    this.firebasePassword,
   });
 
   factory LoginResult.fromJson(Map<String, dynamic> json) {
@@ -120,6 +125,9 @@ class LoginResult {
       user: user,
       token: token,
       keyId: (json['key_id'] ?? response['key_id'])?.toString(),
+      firebasePassword:
+          (json['firebasepassword'] ?? response['firebasepassword'])
+              ?.toString(),
       errorMessage: isOk ? null : (rawError ?? 'Authentication failed'),
     );
   }

@@ -15,6 +15,7 @@ export 'mcp_server_model.dart';
 export 'oi_chat_message.dart';
 export 'product_message_model.dart';
 export 'profile_model.dart';
+export 'search_results_model.dart';
 export 'server_category_model.dart';
 export 'server_model.dart';
 export 'task_list.dart';

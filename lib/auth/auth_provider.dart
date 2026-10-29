@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/em_user.dart';
+import '../services/push_notification_service.dart';
 import 'auth_service.dart';
 import 'auth_state.dart';
 
@@ -9,9 +11,31 @@ final authServiceProvider = Provider<IAuthService>((ref) {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final IAuthService authService;
+  final UserPushSubscriber _push;
 
-  AuthNotifier({required this.authService}) : super(const AuthState()) {
+  AuthNotifier({required this.authService, UserPushSubscriber? push})
+    : _push = push ?? PushNotificationService.instance,
+      super(const AuthState()) {
     checkAuthSession();
+  }
+
+  /// Signs in to Firebase as this user and subscribes to their chat topic so
+  /// the server can push new messages. A failure is logged and never blocks
+  /// the EME login.
+  Future<void> _enablePush(EmUser user) async {
+    final credentials = await authService.getFirebaseCredentials();
+    if (credentials == null) {
+      debugPrint('[AuthNotifier] No Firebase credentials, push is disabled');
+      return;
+    }
+    final error = await _push.signInAndSubscribe(
+      email: credentials.email,
+      firebasePassword: credentials.password,
+      userId: user.username,
+    );
+    if (error != null) {
+      debugPrint('[AuthNotifier] Push notifications not enabled: $error');
+    }
   }
 
   Future<void> checkAuthSession() async {
@@ -26,6 +50,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: token,
           errorMessage: null,
         );
+        await _enablePush(user);
       } else {
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -118,6 +143,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: result.token,
           errorMessage: null,
         );
+        await _enablePush(result.user!);
       } else {
         state = state.copyWith(
           status: AuthStatus.error,
@@ -133,6 +159,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _push.signOutAndUnsubscribe(state.user?.username);
     await authService.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

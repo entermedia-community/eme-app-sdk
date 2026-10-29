@@ -10,6 +10,7 @@ import '../utils/dio.dart';
 import '../utils/error_handler.dart';
 import 'auth_state.dart';
 import 'device_key_store.dart';
+import 'firebase_credential_store.dart';
 
 abstract class IAuthService {
   Future<SendUserCodeResult> sendUserCode({
@@ -28,6 +29,10 @@ abstract class IAuthService {
   Future<EmUser?> getCurrentUser();
   Future<String?> getAuthToken();
 
+  /// The Firebase Auth login saved by the last code login, used to receive
+  /// push notifications. Null when the server did not provide one.
+  Future<FirebaseCredentials?> getFirebaseCredentials();
+
   /// Signs in again with this device's registered key (`grant_type=key`).
   /// Returns false when there is no key or the server rejects it.
   Future<bool> refreshToken();
@@ -44,6 +49,7 @@ class AuthService implements IAuthService {
   final Dio _dio;
   final String baseUrl;
   final DeviceKeyStore _keyStore;
+  final FirebaseCredentialStore _firebaseStore;
 
   static String? currentUserId;
   static String? get userId => currentUserId;
@@ -59,9 +65,11 @@ class AuthService implements IAuthService {
     Dio? dio,
     String? baseUrl,
     DeviceKeyStore? keyStore,
+    FirebaseCredentialStore? firebaseStore,
   }) : openI = openI ?? OpenI.instance,
        _dio = dio ?? DioUtil.dio,
        _keyStore = keyStore ?? const SecureDeviceKeyStore(),
+       _firebaseStore = firebaseStore ?? const SecureFirebaseCredentialStore(),
        baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
 
   String _cleanUrl(String path) {
@@ -207,6 +215,19 @@ class AuthService implements IAuthService {
         currentToken = result.token;
         await SharedPref.saveEmUser(result.user!);
         currentUserId = result.user!.username;
+        currentUserEmail = cleanEmail;
+
+        final firebasePassword = result.firebasePassword;
+        if (firebasePassword != null && firebasePassword.isNotEmpty) {
+          currentFirebasePassword = firebasePassword;
+          await _firebaseStore.save(
+            FirebaseCredentials(email: cleanEmail, password: firebasePassword),
+          );
+        } else {
+          // Login still works, but push notifications cannot be set up.
+          debugPrint('[AuthService] Server returned no firebasepassword');
+          await _firebaseStore.clear();
+        }
       }
 
       return result;
@@ -518,11 +539,18 @@ class AuthService implements IAuthService {
   @override
   Future<void> logout() async {
     await _revokeDeviceKey();
+    await _firebaseStore.clear();
     await SharedPref.resetValues();
     await DioUtil.clearCookies();
     currentUserId = null;
     currentToken = null;
+    currentUserEmail = null;
+    currentFirebasePassword = null;
   }
+
+  @override
+  Future<FirebaseCredentials?> getFirebaseCredentials() =>
+      _firebaseStore.read();
 
   /// Revokes this device's key on the server (best effort, the token may
   /// already be dead) and deletes the private key from the device.
