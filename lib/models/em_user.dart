@@ -46,6 +46,12 @@ class EmUser {
     );
   }
 
+  /// `ready`, `pending` (picture still converting) or `error`; null without one.
+  String? get portraitStatus => properties['assetportraitstatus']?.toString();
+
+  /// Id of the portrait asset, for polling its conversion.
+  String? get portraitAssetId => properties['assetportraitid']?.toString();
+
   String get fullName {
     final first = firstname ?? '';
     final last = lastname ?? '';

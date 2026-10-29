@@ -6,6 +6,12 @@ class EntityAssetModel {
   final DateTime? date;
   final String? sourceType;
   final String? imageUrl;
+
+  /// `ready`, `pending` (still converting), `error`; null without an image.
+  final String? thumbStatus;
+
+  /// Id of the asset behind [imageUrl], for polling its conversion.
+  final String? imageAssetId;
   final String? emeProfileId;
   final String? collectionId;
   final List<String> tags;
@@ -18,6 +24,9 @@ class EntityAssetModel {
   final String? mediaType;
   final String? fileName;
 
+  /// Whether the thumbnail is still being generated.
+  bool get thumbPending => thumbStatus == 'pending';
+
   const EntityAssetModel({
     required this.id,
     required this.name,
@@ -25,6 +34,8 @@ class EntityAssetModel {
     this.date,
     this.sourceType,
     this.imageUrl,
+    this.thumbStatus,
+    this.imageAssetId,
     this.emeProfileId,
     this.collectionId,
     this.tags = const [],
@@ -47,6 +58,8 @@ class EntityAssetModel {
       date: DateTime.tryParse(text('date') ?? ''),
       sourceType: text('sourcetype'),
       imageUrl: text('imageurl'),
+      thumbStatus: text('thumbstatus'),
+      imageAssetId: text('imageassetid'),
       emeProfileId: text('emeprofile'),
       collectionId: text('collectionid'),
       tags: [
@@ -58,6 +71,35 @@ class EntityAssetModel {
       mediaUrl: text('mediaurl'),
       mediaType: text('mediatype'),
       fileName: text('filename'),
+    );
+  }
+}
+
+/// Conversion state of one asset (`entityasset/previewstatus.json`).
+class AssetPreviewStatus {
+  final String assetId;
+
+  /// `ready`, `pending` or `error`.
+  final String state;
+
+  /// Thumbnail URL, once [state] is `ready`.
+  final String? url;
+
+  const AssetPreviewStatus({
+    required this.assetId,
+    required this.state,
+    this.url,
+  });
+
+  bool get isPending => state == 'pending';
+  bool get isReady => state == 'ready';
+
+  factory AssetPreviewStatus.fromJson(Map<String, dynamic> json) {
+    final url = json['previewurl']?.toString();
+    return AssetPreviewStatus(
+      assetId: json['assetid']?.toString() ?? '',
+      state: json['previewstate']?.toString() ?? 'pending',
+      url: (url == null || url.isEmpty) ? null : url,
     );
   }
 }

@@ -125,6 +125,13 @@ abstract class IApiService {
     String? query,
   });
 
+  /// Conversion state of one asset and, once ready, its [size] thumbnail
+  /// URL (`entityasset/previewstatus.json`), for polling after an upload.
+  Future<AssetPreviewStatus> fetchAssetPreviewStatus(
+    String assetId, {
+    String size = 'image200x200',
+  });
+
   /// Uploads [file] as a new entity asset of the project [collectionId], else
   /// of the signed-in user's profile (`entityasset/upload.json`). Throws the
   /// server's error when it refuses the file.
@@ -1498,6 +1505,24 @@ class ApiService implements IApiService {
         .whereType<Map<String, dynamic>>()
         .map(EntityAssetModel.fromJson)
         .toList();
+  }
+
+  @override
+  Future<AssetPreviewStatus> fetchAssetPreviewStatus(
+    String assetId, {
+    String size = 'image200x200',
+  }) async {
+    final data = await _getModuleJson(
+      'entityasset',
+      'previewstatus.json',
+      query: {'assetid': assetId, 'size': size},
+      reason: 'fetchAssetPreviewStatus',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final error = (data['response'] as Map?)?['error'];
+      throw Exception(error ?? 'Preview status: unexpected response');
+    }
+    return AssetPreviewStatus.fromJson(data);
   }
 
   @override

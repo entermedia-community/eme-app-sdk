@@ -117,6 +117,24 @@ final entityAssetsProvider =
       );
     });
 
+/// How often, and how many times, an asset's conversion is checked.
+Duration assetPreviewPollInterval = const Duration(seconds: 3);
+int assetPreviewPollAttempts = 40;
+
+/// Polls an asset's conversion state, emitting each answer, until it is
+/// ready or failed (or the attempts run out). Only the asset id travels to
+/// the server (`entityasset/previewstatus.json`).
+final assetPreviewProvider = StreamProvider.autoDispose
+    .family<AssetPreviewStatus, String>((ref, assetId) async* {
+      final api = ref.watch(apiServiceProvider);
+      for (var i = 0; i < assetPreviewPollAttempts; i++) {
+        final status = await api.fetchAssetPreviewStatus(assetId);
+        yield status;
+        if (!status.isPending) return;
+        await Future<void>.delayed(assetPreviewPollInterval);
+      }
+    });
+
 /// Events the signed-in user answered Interested or Going to (chat list).
 final userEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final api = ref.watch(apiServiceProvider);

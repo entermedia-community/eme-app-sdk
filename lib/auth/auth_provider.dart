@@ -190,6 +190,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(user: user);
   }
 
+  /// Reloads the signed-in user from the server.
+  Future<void> refreshUser() async {
+    final user = await authService.checkAuthSession();
+    if (user != null && mounted) state = state.copyWith(user: user);
+  }
+
   void updateUser(EmUser user) {
     state = state.copyWith(user: user);
   }
