@@ -171,6 +171,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// Saves the signed-in user's name and, when given, a new portrait
+  /// (`authentication/usersave.json`), then reloads the user so the app shows
+  /// what the server stored. Throws when the save or the reload fails.
+  Future<void> updateAccount({
+    required String firstName,
+    required String lastName,
+    MultipartFile? portrait,
+  }) async {
+    await authService.saveUserFields([
+      const MapEntry('field', 'firstName'),
+      MapEntry('firstName.value', firstName),
+      const MapEntry('field', 'lastName'),
+      MapEntry('lastName.value', lastName),
+    ], portrait: portrait);
+    final user = await authService.checkAuthSession();
+    if (user == null) throw Exception('Could not reload your account');
+    state = state.copyWith(user: user);
+  }
+
   void updateUser(EmUser user) {
     state = state.copyWith(user: user);
   }
