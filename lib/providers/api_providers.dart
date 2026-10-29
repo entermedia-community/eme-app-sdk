@@ -167,6 +167,17 @@ final eventChatChannelProvider = FutureProvider.family<String, String>((
   return api.connectEventChat(eventId);
 });
 
+/// FutureProvider for the users that can still be added to a project's team,
+/// keyed by collection id.
+final projectTeamCandidatesProvider =
+    FutureProvider.family<List<EmeProfileModel>, String>((
+      ref,
+      collectionId,
+    ) async {
+      final api = ref.watch(apiServiceProvider);
+      return api.fetchTeamCandidates(collectionId);
+    });
+
 /// FutureProvider for the roles a project team member can have.
 final projectTeamRolesProvider = FutureProvider<List<ProjectTeamRole>>((
   ref,

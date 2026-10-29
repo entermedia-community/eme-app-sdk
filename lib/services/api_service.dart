@@ -86,6 +86,14 @@ abstract class IApiService {
     String? lastName,
   });
 
+  /// Users that can still be added to the project's team: enabled users not
+  /// already on it, optionally narrowed by [query]. Editors only
+  /// (`librarycollection/teamcandidates.json`).
+  Future<List<EmeProfileModel>> fetchTeamCandidates(
+    String collectionId, {
+    String? query,
+  });
+
   /// Roles a team member can have (`librarycollection/teamroles.json`).
   Future<List<ProjectTeamRole>> fetchTeamRoles();
 
@@ -1222,7 +1230,6 @@ class ApiService implements IApiService {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
             if (token != null && token.isNotEmpty)
               'Authorization': 'Bearer $token',
           },
@@ -1350,6 +1357,31 @@ class ApiService implements IApiService {
   }
 
   @override
+  Future<List<EmeProfileModel>> fetchTeamCandidates(
+    String collectionId, {
+    String? query,
+  }) async {
+    final data = await _getProjectJson(
+      'teamcandidates.json',
+      query: {
+        'collectionid': collectionId,
+        if (query != null && query.isNotEmpty) 'query': query,
+      },
+      reason: 'fetchTeamCandidates',
+    );
+    final users = data['users'];
+    if (users is! List) {
+      final response = data['response'];
+      final error = response is Map ? response['error'] : null;
+      throw Exception(error ?? 'Team candidates: no users');
+    }
+    return users
+        .whereType<Map<String, dynamic>>()
+        .map(EmeProfileModel.fromUserJson)
+        .toList();
+  }
+
+  @override
   Future<List<ProjectTeamRole>> fetchTeamRoles() async {
     final data = await _getProjectJson(
       'teamroles.json',
@@ -1406,9 +1438,7 @@ class ApiService implements IApiService {
         if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
         if (types != null && types.isNotEmpty)
           'types': types.map((t) => t.name).join(','),
-        if (category != null &&
-            category.trim().isNotEmpty &&
-            category != 'All')
+        if (category != null && category.trim().isNotEmpty && category != 'All')
           'category': category.trim(),
       },
       reason: 'search',
