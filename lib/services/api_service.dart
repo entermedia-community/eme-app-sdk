@@ -97,6 +97,18 @@ abstract class IApiService {
     MultipartFile? logo,
   });
 
+  /// Saves the project's details (`librarycollection/update.json`) and
+  /// returns the project. Only the project's owner (or an administrator) may;
+  /// throws the server's error otherwise. An empty [description] or [tags]
+  /// clears them.
+  Future<LibraryCollectionModel> updateProject(
+    String collectionId, {
+    required String name,
+    String? description,
+    String? urlName,
+    List<String> tags = const [],
+  });
+
   /// Users that can still be added to the project's team: enabled users not
   /// already on it, optionally narrowed by [query]. Editors only
   /// (`librarycollection/teamcandidates.json`).
@@ -1460,6 +1472,36 @@ class ApiService implements IApiService {
       );
       rethrow;
     }
+  }
+
+  @override
+  Future<LibraryCollectionModel> updateProject(
+    String collectionId, {
+    required String name,
+    String? description,
+    String? urlName,
+    List<String> tags = const [],
+  }) async {
+    final fields = <String, List<String>>{
+      'name': [name.trim()],
+      'collectivedescription': [description?.trim() ?? ''],
+      if ((urlName?.trim() ?? '').isNotEmpty) 'urlname': [urlName!.trim()],
+      'collectivetags': tags,
+    };
+    final data = await _getProjectJson(
+      'update.json',
+      query: {
+        'collectionid': collectionId,
+        'field': fields.keys.toList(),
+        for (final e in fields.entries) '${e.key}.value': e.value,
+      },
+      reason: 'updateProject',
+    );
+    if (_responseStatus(data) != 'ok') {
+      final error = (data['response'] as Map?)?['error'];
+      throw Exception('Update project: ${error ?? 'failed'}');
+    }
+    return fetchProjectCollection(collectionId);
   }
 
   @override

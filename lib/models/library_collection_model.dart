@@ -12,6 +12,12 @@ class LibraryCollectionModel {
   final String? urlName;
   final String? description;
 
+  /// User id of the project's `owner`.
+  final String? ownerId;
+
+  /// Search keywords (`collectivetags`).
+  final List<String> tags;
+
   /// `collectiontype` list id. `"5"` is a proposal.
   final String? collectionType;
 
@@ -54,6 +60,8 @@ class LibraryCollectionModel {
     required this.name,
     this.urlName,
     this.description,
+    this.ownerId,
+    this.tags = const [],
     this.collectionType,
     this.privacyLevel,
     this.assetPortrait,
@@ -86,6 +94,9 @@ class LibraryCollectionModel {
   /// Web only shows the Donate box on community projects.
   bool get acceptsDonations => privacyLevel == 'community';
 
+  bool isOwnedBy(String? userId) =>
+      userId != null && ownerId != null && ownerId == userId;
+
   bool isOnTeam(String? userId) =>
       userId != null && team.any((m) => m.userId == userId);
 
@@ -95,6 +106,8 @@ class LibraryCollectionModel {
       name: name,
       urlName: urlName,
       description: description,
+      ownerId: ownerId,
+      tags: tags,
       collectionType: collectionType,
       privacyLevel: privacyLevel,
       assetPortrait: assetPortrait,
@@ -170,6 +183,8 @@ class LibraryCollectionModel {
       urlName: _string(json['urlname']),
       // `description` holds the search keywords, not prose.
       description: _string(json['collectivedescription']),
+      ownerId: _string(json['owner']),
+      tags: _ids(json['collectivetags']),
       collectionType: _string(json['collectiontype']),
       privacyLevel: _string(json['priviacylevel']),
       assetPortrait: _string(json['assetportrait']),
@@ -201,6 +216,8 @@ class LibraryCollectionModel {
       'name': name,
       if (urlName != null) 'urlname': urlName,
       if (description != null) 'description': description,
+      if (ownerId != null) 'owner': ownerId,
+      if (tags.isNotEmpty) 'collectivetags': tags,
       if (collectionType != null) 'collectiontype': collectionType,
       if (privacyLevel != null) 'priviacylevel': privacyLevel,
       if (assetPortrait != null) 'assetportrait': assetPortrait,

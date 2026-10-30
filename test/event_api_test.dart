@@ -239,6 +239,52 @@ void main() {
     expect(api.createProject(name: 'X'), throwsException);
   });
 
+  test('updateProject sends the fields and reloads the project', () async {
+    final seen = <RequestOptions>[];
+    final api = apiWith((o) {
+      seen.add(o);
+      return o.path.contains('update.json')
+          ? {
+              'response': {'status': 'ok', 'id': 'c9'},
+            }
+          : {
+              'data': {'id': 'c9', 'name': 'Reef 2', 'owner': 'me'},
+            };
+    });
+
+    final project = await api.updateProject(
+      'c9',
+      name: ' Reef 2 ',
+      description: '',
+      urlName: 'reef-2',
+      tags: ['ocean'],
+    );
+
+    final q = seen.first.queryParameters;
+    expect(seen.first.path, contains('/librarycollection/update.json'));
+    expect(q['collectionid'], 'c9');
+    expect(q['field'], [
+      'name',
+      'collectivedescription',
+      'urlname',
+      'collectivetags',
+    ]);
+    expect(q['name.value'], ['Reef 2']);
+    expect(q['collectivedescription.value'], ['']);
+    expect(q['collectivetags.value'], ['ocean']);
+    expect(project.isOwnedBy('me'), isTrue);
+    expect(project.isOwnedBy('you'), isFalse);
+  });
+
+  test('updateProject throws the server error', () async {
+    final api = apiWith(
+      (_) => {
+        'response': {'status': 'error', 'error': 'Only the project owner'},
+      },
+    );
+    expect(api.updateProject('c9', name: 'X'), throwsException);
+  });
+
   test('ServerModel reads isowner', () {
     final owner = ServerModel.fromJson({
       'id': 's1',
