@@ -3,22 +3,55 @@ import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// A private key that can sign login messages. The server only ever sees the
+/// public key.
+abstract class DeviceSigner {
+  /// `Ed25519` or `P-256` (the web can fall back to ECDSA).
+  String get alg;
+
+  /// base64url X.509 public key, the `publickey` the server registers.
+  Future<String> publicKey();
+
+  /// base64url signature of [message].
+  Future<String> sign(String message);
+}
+
+/// Ed25519 signer backed by a 32 byte seed held in the device keystore.
+class SeedSigner implements DeviceSigner {
+  final List<int> seed;
+
+  const SeedSigner(this.seed);
+
+  /// New random key.
+  static Future<SeedSigner> generate() async =>
+      SeedSigner(await DeviceKeyCrypto.newSeed());
+
+  @override
+  String get alg => 'Ed25519';
+
+  @override
+  Future<String> publicKey() => DeviceKeyCrypto.publicKey(seed);
+
+  @override
+  Future<String> sign(String message) =>
+      DeviceKeyCrypto.sign(seed: seed, message: message);
+}
+
 /// The device's registered login key, as returned by `registerkey.json` /
 /// `token.json` on the EME server.
 class DeviceKey {
   final String keyId;
   final String username;
-  final List<int> seed;
+  final DeviceSigner signer;
 
   const DeviceKey({
     required this.keyId,
     required this.username,
-    required this.seed,
+    required this.signer,
   });
 }
 
-/// Holds this device's Ed25519 private key. The server only ever sees the
-/// public key; the private key never leaves the device keystore.
+/// Holds this device's private key. The private key never leaves the device.
 abstract class DeviceKeyStore {
   Future<DeviceKey?> read();
   Future<void> save(DeviceKey key);
@@ -43,15 +76,19 @@ class SecureDeviceKeyStore implements DeviceKeyStore {
     return DeviceKey(
       keyId: keyId,
       username: username,
-      seed: base64Url.decode(base64Url.normalize(seed)),
+      signer: SeedSigner(base64Url.decode(base64Url.normalize(seed))),
     );
   }
 
   @override
   Future<void> save(DeviceKey key) async {
+    final signer = key.signer;
+    if (signer is! SeedSigner) {
+      throw StateError('SecureDeviceKeyStore only stores seed based keys');
+    }
     await _storage.write(key: _keyId, value: key.keyId);
     await _storage.write(key: _username, value: key.username);
-    await _storage.write(key: _seed, value: base64UrlEncode(key.seed));
+    await _storage.write(key: _seed, value: base64UrlEncode(signer.seed));
   }
 
   @override
@@ -98,18 +135,22 @@ class DeviceKeyCrypto {
     return b64url([..._spkiPrefix, ...pub.bytes]);
   }
 
-  /// base64url signature of `username\nkey_id\ntimestamp\nnonce`
-  /// (no trailing newline), as `token.json` verifies it.
-  static Future<String> sign({
-    required List<int> seed,
+  /// The message `token.json` verifies: `username\nkey_id\ntimestamp\nnonce`
+  /// (no trailing newline).
+  static String loginMessage({
     required String username,
     required String keyId,
     required String timestamp,
     required String nonce,
+  }) => '$username\n$keyId\n$timestamp\n$nonce';
+
+  /// base64url Ed25519 signature of [message].
+  static Future<String> sign({
+    required List<int> seed,
+    required String message,
   }) async {
     final pair = await _ed25519.newKeyPairFromSeed(seed);
-    final message = utf8.encode('$username\n$keyId\n$timestamp\n$nonce');
-    final signature = await _ed25519.sign(message, keyPair: pair);
+    final signature = await _ed25519.sign(utf8.encode(message), keyPair: pair);
     return b64url(signature.bytes);
   }
 }

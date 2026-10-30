@@ -9,6 +9,7 @@ import '../services/shared_preferences.dart';
 import '../utils/dio.dart';
 import '../utils/error_handler.dart';
 import 'auth_state.dart';
+import 'device_key_platform.dart';
 import 'device_key_store.dart';
 import 'firebase_credential_store.dart';
 
@@ -68,7 +69,7 @@ class AuthService implements IAuthService {
     FirebaseCredentialStore? firebaseStore,
   }) : openI = openI ?? OpenI.instance,
        _dio = dio ?? DioUtil.dio,
-       _keyStore = keyStore ?? const SecureDeviceKeyStore(),
+       _keyStore = keyStore ?? createPlatformKeyStore(),
        _firebaseStore = firebaseStore ?? const SecureFirebaseCredentialStore(),
        baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
 
@@ -169,12 +170,12 @@ class AuthService implements IAuthService {
 
     // The code login also registers this device's public key, so later
     // sessions renew themselves by signing instead of asking for a new code.
-    final seed = await DeviceKeyCrypto.newSeed();
+    final signer = await createPlatformSigner();
     final body = <String, dynamic>{
       'grant_type': 'otp',
       'email': cleanEmail,
       'code': cleanCode,
-      'publickey': await DeviceKeyCrypto.publicKey(seed),
+      if (signer != null) 'publickey': await signer.publicKey(),
       'label': _deviceLabel,
       'firebaseenabled': true,
     };
@@ -200,16 +201,24 @@ class AuthService implements IAuthService {
       final result = LoginResult.fromJson(_decodeMap(response.data));
 
       if (result.isSuccess && result.token != null) {
-        final keyId = result.keyId;
-        if (keyId == null || keyId.isEmpty || result.user == null) {
-          return LoginResult(
-            isSuccess: false,
-            errorMessage: 'The server did not register this device key',
+        if (signer != null) {
+          final keyId = result.keyId;
+          if (keyId == null || keyId.isEmpty || result.user == null) {
+            return LoginResult(
+              isSuccess: false,
+              errorMessage: 'The server did not register this device key',
+            );
+          }
+          await _keyStore.save(
+            DeviceKey(
+              keyId: keyId,
+              username: result.user!.username,
+              signer: signer,
+            ),
           );
+        } else {
+          debugPrint('[AuthService] No device key support; code login only');
         }
-        await _keyStore.save(
-          DeviceKey(keyId: keyId, username: result.user!.username, seed: seed),
-        );
         // getAuthToken/checkAuthSession and ApiService read it back from here.
         await SharedPref.saveEMKey(result.token!);
         currentToken = result.token;
@@ -266,12 +275,13 @@ class AuthService implements IAuthService {
     final nonce = DeviceKeyCrypto.b64url(
       List<int>.generate(24, (_) => Random.secure().nextInt(256)),
     );
-    final signature = await DeviceKeyCrypto.sign(
-      seed: key.seed,
-      username: key.username,
-      keyId: key.keyId,
-      timestamp: timestamp,
-      nonce: nonce,
+    final signature = await key.signer.sign(
+      DeviceKeyCrypto.loginMessage(
+        username: key.username,
+        keyId: key.keyId,
+        timestamp: timestamp,
+        nonce: nonce,
+      ),
     );
 
     try {
