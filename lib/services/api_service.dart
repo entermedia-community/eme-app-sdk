@@ -86,6 +86,17 @@ abstract class IApiService {
     String? lastName,
   });
 
+  /// Creates a project owned by the signed-in user, who is put on its team
+  /// (`librarycollection/create.json`), and returns it. [logo] becomes the
+  /// project's portrait. Throws the server's error when it refuses.
+  Future<LibraryCollectionModel> createProject({
+    required String name,
+    String? description,
+    String? urlName,
+    List<String> tags = const [],
+    MultipartFile? logo,
+  });
+
   /// Users that can still be added to the project's team: enabled users not
   /// already on it, optionally narrowed by [query]. Editors only
   /// (`librarycollection/teamcandidates.json`).
@@ -1380,6 +1391,74 @@ class ApiService implements IApiService {
       final response = data['response'];
       final error = response is Map ? response['error'] : null;
       throw Exception(error ?? 'Could not add team member');
+    }
+  }
+
+  @override
+  Future<LibraryCollectionModel> createProject({
+    required String name,
+    String? description,
+    String? urlName,
+    List<String> tags = const [],
+    MultipartFile? logo,
+  }) async {
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final url = '$_cleanBaseUrl/services/module/librarycollection/create.json';
+    // The server reads `field` names and their `<field>.value`s; the logo is
+    // the file named after the asset field it fills.
+    final form = FormData();
+    void addField(String field, Iterable<String> values) {
+      form.fields.add(MapEntry('field', field));
+      for (final value in values) {
+        form.fields.add(MapEntry('$field.value', value));
+      }
+    }
+
+    addField('name', [name.trim()]);
+    final desc = description?.trim() ?? '';
+    if (desc.isNotEmpty) addField('collectivedescription', [desc]);
+    final slug = urlName?.trim() ?? '';
+    if (slug.isNotEmpty) addField('urlname', [slug]);
+    if (tags.isNotEmpty) addField('collectivetags', tags);
+    // Not listed as a `field`: the server attaches the uploaded asset itself,
+    // and a listed field with no value would blank it again.
+    if (logo != null) form.files.add(MapEntry('assetportrait', logo));
+
+    debugPrint('[ApiService] createProject POST URL: $url');
+    try {
+      final response = await _dio.post(
+        url,
+        data: form,
+        options: Options(
+          headers: {
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+          sendTimeout: const Duration(minutes: 2),
+          receiveTimeout: const Duration(minutes: 1),
+        ),
+      );
+      dynamic data = response.data;
+      if (data is String && data.trim().isNotEmpty) data = jsonDecode(data);
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Create project: unexpected response');
+      }
+      if (_responseStatus(data) != 'ok') {
+        final error = (data['response'] as Map?)?['error'];
+        throw Exception('Create project: ${error ?? 'failed'}');
+      }
+      final id = (data['response'] as Map)['id']?.toString() ?? '';
+      if (id.isEmpty) throw Exception('Create project: no project id');
+      return await fetchProjectCollection(id);
+    } catch (e, stack) {
+      debugPrint('[ApiService] createProject error: $e');
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'ApiService.createProject failed',
+        customKeys: {'url': url},
+      );
+      rethrow;
     }
   }
 

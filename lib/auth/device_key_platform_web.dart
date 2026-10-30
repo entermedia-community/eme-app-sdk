@@ -78,9 +78,7 @@ class WebDeviceSigner implements DeviceSigner {
     if (key == null) {
       throw StateError('The public key is only available on a new key');
     }
-    final spki = await web.window.crypto.subtle
-        .exportKey('spki', key)
-        .toDart;
+    final spki = await web.window.crypto.subtle.exportKey('spki', key).toDart;
     return DeviceKeyCrypto.b64url((spki as JSArrayBuffer).toDart.asUint8List());
   }
 

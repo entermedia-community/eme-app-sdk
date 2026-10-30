@@ -168,6 +168,77 @@ void main() {
     );
   });
 
+  test(
+    'createProject posts the fields and logo, then loads the project',
+    () async {
+      final seen = <RequestOptions>[];
+      final api = apiWith((o) {
+        seen.add(o);
+        if (o.path.contains('create.json')) {
+          return {
+            'response': {'status': 'ok', 'id': 'c9'},
+          };
+        }
+        return {
+          'data': {'id': 'c9', 'name': 'Reef', 'urlname': 'reef'},
+        };
+      });
+
+      final project = await api.createProject(
+        name: ' Reef ',
+        description: 'Coral work',
+        urlName: 'reef',
+        tags: ['ocean', 'coral'],
+        logo: MultipartFile.fromBytes([1, 2, 3], filename: 'logo.png'),
+      );
+
+      final form = seen.first.data as FormData;
+      expect(seen.first.path, contains('/librarycollection/create.json'));
+      expect(
+        form.fields.map((e) => '${e.key}=${e.value}'),
+        containsAll([
+          'name.value=Reef',
+          'collectivedescription.value=Coral work',
+          'urlname.value=reef',
+          'collectivetags.value=ocean',
+          'collectivetags.value=coral',
+        ]),
+      );
+      // The logo must not be a listed field, or the server blanks it.
+      expect(form.fields.map((e) => e.value), isNot(contains('assetportrait')));
+      expect(form.files.single.key, 'assetportrait');
+      expect(project.id, 'c9');
+      expect(project.name, 'Reef');
+    },
+  );
+
+  test('createProject without optional fields sends only the name', () async {
+    final seen = <RequestOptions>[];
+    final api = apiWith((o) {
+      seen.add(o);
+      return o.path.contains('create.json')
+          ? {
+              'response': {'status': 'ok', 'id': 'c1'},
+            }
+          : {
+              'data': {'id': 'c1', 'name': 'Solo'},
+            };
+    });
+    await api.createProject(name: 'Solo');
+    final form = seen.first.data as FormData;
+    expect(form.fields.map((e) => e.key).toSet(), {'field', 'name.value'});
+    expect(form.files, isEmpty);
+  });
+
+  test('createProject throws the server error', () async {
+    final api = apiWith(
+      (_) => {
+        'response': {'status': 'error', 'error': 'not allowed'},
+      },
+    );
+    expect(api.createProject(name: 'X'), throwsException);
+  });
+
   test('ServerModel reads isowner', () {
     final owner = ServerModel.fromJson({
       'id': 's1',
