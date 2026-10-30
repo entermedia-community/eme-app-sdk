@@ -45,6 +45,29 @@ abstract class IApiService {
     String? serverId,
     String? baseUrl,
   });
+
+  /// Sessions (channels) of one chat, newest `refreshdate` first
+  /// (`/services/chat/sessions.json`). Give exactly one of [toUser] (a DM),
+  /// [serverId] (an EME Server chat) or [collectionId] (a project chat).
+  /// Throws when the server is unreachable or answers with an error.
+  Future<List<ChatSession>> fetchChatSessions({
+    String? toUser,
+    String? serverId,
+    String? collectionId,
+    String? baseUrl,
+  });
+
+  /// Starts a new session (channel) of the same chat
+  /// (`/services/chat/newsession.json`), taking the same scope as
+  /// [fetchChatSessions]. Throws when the server is unreachable or answers
+  /// with an error.
+  Future<ChatSession> createChatSession({
+    String? toUser,
+    String? serverId,
+    String? collectionId,
+    String? baseUrl,
+  });
+
   Future<List<FileItemModel>> fetchFiles({String? serverId});
   Future<List<GoalItemModel>> fetchServerGoals(String serverId);
   Future<List<TransactionItemModel>> fetchServerTransactions(String serverId);
@@ -1052,6 +1075,114 @@ class ApiService implements IApiService {
       }
     }
     return [];
+  }
+
+  @override
+  Future<List<ChatSession>> fetchChatSessions({
+    String? toUser,
+    String? serverId,
+    String? collectionId,
+    String? baseUrl,
+  }) async {
+    final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
+        ? (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl)
+        : _cleanBaseUrl;
+    if (cleanBase.isEmpty) throw Exception('No server URL configured');
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+
+    final response = await _dio.get(
+      '$cleanBase/services/chat/sessions.json',
+      queryParameters: {
+        'touser': ?toUser,
+        'serverid': ?serverId,
+        'collectionid': ?collectionId,
+        'fromuser': ?AuthService.userId,
+      },
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'X-tokentype': 'entermedia',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+
+    dynamic data = response.data;
+    if (data is String && data.trim().isNotEmpty) data = jsonDecode(data);
+    final sessions = data is Map ? data['sessions'] : null;
+    if (sessions is! List) {
+      final status = data is Map && data['response'] is Map
+          ? data['response']['status']
+          : null;
+      throw Exception(
+        'Session history: ${status ?? 'no sessions in response'}',
+      );
+    }
+    final result = sessions
+        .whereType<Map<String, dynamic>>()
+        .map(ChatSession.fromJson)
+        .where((s) => s.channelId.isNotEmpty)
+        .toList();
+    result.sort(
+      (a, b) => (b.refreshDate ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.refreshDate ?? DateTime.fromMillisecondsSinceEpoch(0)),
+    );
+    return result;
+  }
+
+  @override
+  Future<ChatSession> createChatSession({
+    String? toUser,
+    String? serverId,
+    String? collectionId,
+    String? baseUrl,
+  }) async {
+    final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
+        ? (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl)
+        : _cleanBaseUrl;
+    if (cleanBase.isEmpty) throw Exception('No server URL configured');
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+
+    final response = await _dio.post(
+      '$cleanBase/services/chat/newsession.json',
+      data: {
+        'touser': ?toUser,
+        'serverid': ?serverId,
+        'collectionid': ?collectionId,
+        'fromuser': ?AuthService.userId,
+      },
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'X-tokentype': 'entermedia',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+
+    dynamic data = response.data;
+    if (data is String && data.trim().isNotEmpty) data = jsonDecode(data);
+    final channel = data is Map ? data['channel'] : null;
+    if (channel == null || channel.toString().isEmpty) {
+      final status = data is Map && data['response'] is Map
+          ? data['response']['status']
+          : null;
+      throw Exception('New session: ${status ?? 'no channel in response'}');
+    }
+    return ChatSession(
+      channelId: channel.toString(),
+      refreshDate: DateTime.now(),
+    );
   }
 
   @override
