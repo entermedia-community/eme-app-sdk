@@ -12,6 +12,9 @@ enum SearchType { people, projects, servers, events }
 /// wasn't searched has an empty list.
 class SearchResults {
   final List<EmeProfileModel> people;
+
+  /// Usernames of [people] the signed-in user has a direct message with.
+  final Set<String> connectedUsernames;
   final List<LibraryCollectionModel> projects;
 
   /// Ids of [projects] the signed-in user is on the team of.
@@ -26,6 +29,7 @@ class SearchResults {
 
   const SearchResults({
     this.people = const [],
+    this.connectedUsernames = const {},
     this.projects = const [],
     this.joinedProjectIds = const {},
     this.servers = const [],
@@ -52,9 +56,15 @@ class SearchResults {
       return value.map(ServerCategoryModel.fromJson).toList();
     }
 
+    final userRows = maps('users');
     final projectRows = maps('projects');
     return SearchResults(
-      people: maps('users').map(EmeProfileModel.fromUserJson).toList(),
+      people: userRows.map(EmeProfileModel.fromUserJson).toList(),
+      connectedUsernames: {
+        for (final row in userRows)
+          if (row['connected'] == true)
+            (row['username'] ?? row['id']).toString(),
+      },
       projects: [
         for (final row in projectRows)
           if (row['project'] is Map)
