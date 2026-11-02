@@ -1,6 +1,7 @@
 import 'eme_profile_model.dart';
 import 'event_model.dart';
 import 'library_collection_model.dart';
+import 'server_category_model.dart';
 import 'server_model.dart';
 
 /// What a unified search can look through. The [name]s are the `types` the
@@ -18,12 +19,20 @@ class SearchResults {
   final List<ServerModel> servers;
   final List<EventModel> events;
 
+  /// Every server, project and people category, not only those of the matches.
+  final List<ServerCategoryModel> serverCategories;
+  final List<ServerCategoryModel> projectCategories;
+  final List<ServerCategoryModel> peopleCategories;
+
   const SearchResults({
     this.people = const [],
     this.projects = const [],
     this.joinedProjectIds = const {},
     this.servers = const [],
     this.events = const [],
+    this.serverCategories = const [],
+    this.projectCategories = const [],
+    this.peopleCategories = const [],
   });
 
   factory SearchResults.fromJson(Map<String, dynamic> json) {
@@ -34,6 +43,13 @@ class SearchResults {
           .whereType<Map>()
           .map((m) => Map<String, dynamic>.from(m))
           .toList();
+    }
+
+    List<ServerCategoryModel> categories(String key) {
+      final all = json['categories'];
+      final value = all is Map ? all[key] : null;
+      if (value is! List) return const [];
+      return value.map(ServerCategoryModel.fromJson).toList();
     }
 
     final projectRows = maps('projects');
@@ -53,6 +69,9 @@ class SearchResults {
       },
       servers: maps('emeservers').map(ServerModel.fromJson).toList(),
       events: maps('events').map(EventModel.fromJson).toList(),
+      serverCategories: categories('server'),
+      projectCategories: categories('project'),
+      peopleCategories: categories('people'),
     );
   }
 }
