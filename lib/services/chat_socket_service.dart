@@ -119,9 +119,10 @@ class ChatSocketService {
   Future<String> connectChat(
     String serverId, {
     Map<String, dynamic>? params,
+    String? baseUrl,
   }) async {
     final effectiveToken = _resolveToken();
-    final effectiveBase = _resolveHttpBaseUrl();
+    final effectiveBase = _stripTrailingSlash(_resolveHttpBaseUrl(baseUrl));
     final effectiveUser = _resolveUserId();
 
     final primaryUrl = '$effectiveBase/services/chat/connect.json';
@@ -201,9 +202,26 @@ class ChatSocketService {
     String? catalogId,
   }) async {
     _isDisposed = false;
+    // The socket of the server being chatted with: an http(s) server address
+    // (e.g. impactbank.world's mediadb URL) becomes that host's chat socket.
+    final targetBaseUrl = _resolveWsBaseUrl(baseUrl);
+
+    // A socket left open for another server or channel would swallow this
+    // connect (it returns early while connected), so close it first.
+    final busy =
+        _connectionState == SocketConnectionState.connected ||
+        _connectionState == SocketConnectionState.connecting;
+    if (busy && (targetBaseUrl != _baseUrl || channel != _channelId)) {
+      debugPrint(
+        'ChatSocketService: switching socket from $_baseUrl ($_channelId) '
+        'to $targetBaseUrl ($channel)',
+      );
+      disconnect();
+    }
+
     _channelId = channel;
     _channelType = channelType;
-    _baseUrl = _resolveWsBaseUrl(baseUrl);
+    _baseUrl = targetBaseUrl;
     _sessionId = _generateSessionId();
 
     _userId = _resolveUserId(userId);
@@ -422,7 +440,12 @@ class ChatSocketService {
           _connectionState != SocketConnectionState.connected &&
           _connectionState != SocketConnectionState.connecting &&
           _channelId.isNotEmpty) {
-        connect(channel: _channelId, channelType: _channelType);
+        // Same server's socket, not the app's default one
+        connect(
+          channel: _channelId,
+          channelType: _channelType,
+          baseUrl: _baseUrl,
+        );
       }
     });
   }
@@ -439,7 +462,11 @@ class ChatSocketService {
     if (!reconnect) {
       _updateState(SocketConnectionState.disconnected);
     } else if (_channelId.isNotEmpty) {
-      connect(channel: _channelId, channelType: _channelType);
+      connect(
+        channel: _channelId,
+        channelType: _channelType,
+        baseUrl: _baseUrl,
+      );
     }
   }
 
@@ -488,6 +515,14 @@ class ChatSocketService {
       return oi.settings.mediadb;
     }
     return '';
+  }
+
+  static String _stripTrailingSlash(String url) {
+    var clean = url.trim();
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    return clean;
   }
 
   String _resolveWsBaseUrl([String? explicitBaseUrl]) {

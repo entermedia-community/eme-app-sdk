@@ -205,10 +205,12 @@ abstract class IApiService {
 
   /// Opens the EME Server's chat channel and returns its id
   /// (`chat/connect.json`). [params] carry a tapped action's data, which can
-  /// move the chat to another channel.
+  /// move the chat to another channel. [baseUrl] is the EME Server's own
+  /// mediadb URL; without it the app's default server is used.
   Future<String> connectServerChat(
     String serverId, {
     Map<String, dynamic>? params,
+    String? baseUrl,
   });
 
   /// Opens the event's chat channel and returns its id
@@ -1901,8 +1903,13 @@ class ApiService implements IApiService {
   Future<String> connectServerChat(
     String serverId, {
     Map<String, dynamic>? params,
+    String? baseUrl,
   }) {
-    return ChatSocketService().connectChat(serverId, params: params);
+    return ChatSocketService().connectChat(
+      serverId,
+      params: params,
+      baseUrl: baseUrl,
+    );
   }
 
   @override

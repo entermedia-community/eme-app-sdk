@@ -37,6 +37,15 @@ abstract class IAuthService {
   /// Signs in again with this device's registered key (`grant_type=key`).
   /// Returns false when there is no key or the server rejects it.
   Future<bool> refreshToken();
+
+  /// Starts a session on another EME Server (e.g. impactbank.world, given by
+  /// its mediadb URL) for the user signed in on this root server. Posts a
+  /// freshly signed key login to that server's `tokenremote.json`, which
+  /// forwards it here to verify; the session cookie it returns is kept for
+  /// the app's later requests to that server. Does nothing when the URL is
+  /// this root server. Throws when there is no device key or the login is
+  /// refused.
+  Future<void> authenticateRemoteServer(String serverMediaDbUrl);
   Future<void> logout();
   Future<bool> isAuthenticated();
   Future<void> saveUserFields(
@@ -266,10 +275,12 @@ class AuthService implements IAuthService {
     return {};
   }
 
-  @override
-  Future<bool> refreshToken() async {
+  /// A `grant_type=key` login signed with this device's key, or null when the
+  /// device has no key. Every call uses a new nonce, so each server gets its
+  /// own payload (the root rejects a nonce it has already seen).
+  Future<Map<String, String>?> _signedKeyLogin() async {
     final key = await _keyStore.read();
-    if (key == null) return false;
+    if (key == null) return null;
 
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final nonce = DeviceKeyCrypto.b64url(
@@ -283,18 +294,86 @@ class AuthService implements IAuthService {
         nonce: nonce,
       ),
     );
+    return {
+      'grant_type': 'key',
+      'username': key.username,
+      'key_id': key.keyId,
+      'timestamp': timestamp,
+      'nonce': nonce,
+      'signature': signature,
+    };
+  }
+
+  @override
+  Future<void> authenticateRemoteServer(String serverMediaDbUrl) async {
+    var remoteBase = serverMediaDbUrl.trim();
+    while (remoteBase.endsWith('/')) {
+      remoteBase = remoteBase.substring(0, remoteBase.length - 1);
+    }
+    if (remoteBase.isEmpty) {
+      throw ArgumentError.value(serverMediaDbUrl, 'serverMediaDbUrl');
+    }
+    final remoteUri = Uri.tryParse(remoteBase);
+    final rootUri = Uri.tryParse(_cleanUrl(''));
+    if (remoteUri != null &&
+        rootUri != null &&
+        remoteUri.host == rootUri.host &&
+        remoteUri.port == rootUri.port) {
+      return; // The root server itself: already signed in here
+    }
+
+    final payload = await _signedKeyLogin();
+    if (payload == null) {
+      throw Exception('This device has no sign-in key; sign in again');
+    }
+
+    final url = '$remoteBase/services/authentication/tokenremote.json';
+    final Response response;
+    try {
+      response = await _dio.post(
+        url,
+        data: payload,
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {'X-tokentype': 'entermedia'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+    } catch (e, stack) {
+      AppErrorHandler.recordNonFatal(
+        e,
+        stack,
+        reason: 'AuthService.authenticateRemoteServer failed',
+        customKeys: {'url': url},
+      );
+      throw Exception('Could not reach $remoteBase');
+    }
+
+    final data = _decodeMap(response.data);
+    final status = response.statusCode ?? 0;
+    if (status != 200 || data['session'] != true) {
+      final error = data['error']?.toString();
+      debugPrint(
+        '[AuthService] authenticateRemoteServer $url refused [$status]: $error',
+      );
+      throw Exception(
+        error != null && error.isNotEmpty
+            ? 'Sign-in to this server failed: $error'
+            : 'Sign-in to this server failed (HTTP $status)',
+      );
+    }
+  }
+
+  @override
+  Future<bool> refreshToken() async {
+    final payload = await _signedKeyLogin();
+    if (payload == null) return false;
 
     try {
       final response = await _dio.post(
         _cleanUrl('/services/authentication/token.json'),
-        data: {
-          'grant_type': 'key',
-          'username': key.username,
-          'key_id': key.keyId,
-          'timestamp': timestamp,
-          'nonce': nonce,
-          'signature': signature,
-        },
+        data: payload,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
           headers: {'X-tokentype': 'entermedia'},
