@@ -213,6 +213,11 @@ abstract class IApiService {
     String? baseUrl,
   });
 
+  /// Opens the user's own "My EME" chat on the root server and returns its
+  /// channel id (`chat/connectmyeme.json`, scenario
+  /// `my_eme_welcome_menu`).
+  Future<String> connectMyEmeChat();
+
   /// Opens the event's chat channel and returns its id
   /// (`emeevent/connectchat.json`).
   Future<String> connectEventChat(String eventId);
@@ -1939,6 +1944,15 @@ class ApiService implements IApiService {
       serverId,
       params: params,
       baseUrl: baseUrl,
+    );
+  }
+
+  @override
+  Future<String> connectMyEmeChat() {
+    return ChatSocketService().connectChat(
+      null,
+      endpoint: 'chat/connectmyeme.json',
+      params: {'currentscenario': 'my_eme_welcome_menu'},
     );
   }
 

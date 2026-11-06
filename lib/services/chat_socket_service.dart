@@ -116,19 +116,23 @@ class ChatSocketService {
   }
 
   /// Returns the channel string or fallback.
+  ///
+  /// [endpoint] is the path under `services/` that opens the channel
+  /// (`chat/connect.json` by default, `chat/connectmyeme.json` for My EME).
   Future<String> connectChat(
-    String serverId, {
+    String? serverId, {
     Map<String, dynamic>? params,
     String? baseUrl,
+    String endpoint = 'chat/connect.json',
   }) async {
     final effectiveToken = _resolveToken();
     final effectiveBase = _stripTrailingSlash(_resolveHttpBaseUrl(baseUrl));
     final effectiveUser = _resolveUserId();
 
-    final primaryUrl = '$effectiveBase/services/chat/connect.json';
+    final primaryUrl = '$effectiveBase/services/$endpoint';
 
     final body = <String, dynamic>{
-      'serverid': serverId,
+      if (serverId != null && serverId.isNotEmpty) 'serverid': serverId,
       if (effectiveUser.isNotEmpty) 'fromuser': effectiveUser,
       if (effectiveUser.isNotEmpty) 'user': effectiveUser,
       'channeltype': 'emeteamchat',
@@ -186,7 +190,7 @@ class ChatSocketService {
         e,
         stack,
         reason: 'ChatSocketService.connectChat failed',
-        customKeys: {'serverId': serverId, 'url': primaryUrl},
+        customKeys: {'serverId': serverId ?? '', 'url': primaryUrl},
       );
       rethrow;
     }
