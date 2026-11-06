@@ -65,7 +65,10 @@ class PushNotificationMessage {
       data: data,
       type: data['type']?.toString() ?? data['action']?.toString(),
       channelId: data['channel']?.toString() ?? data['channelId']?.toString(),
-      serverId: data['server']?.toString() ?? data['serverId']?.toString(),
+      serverId:
+          data['serverid']?.toString() ??
+          data['server']?.toString() ??
+          data['serverId']?.toString(),
       userId: data['user']?.toString() ?? data['userId']?.toString(),
       sentTime: message.sentTime,
     );
@@ -87,6 +90,8 @@ class PushNotificationMessage {
           data['channelId']?.toString() ??
           data['channel']?.toString(),
       serverId:
+          json['serverid']?.toString() ??
+          data['serverid']?.toString() ??
           json['server']?.toString() ??
           data['serverId']?.toString() ??
           data['server']?.toString(),
