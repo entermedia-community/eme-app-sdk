@@ -1,6 +1,9 @@
-/// One session of a chat: a channel. A new session (channel) starts when a
-/// chat is opened after a set amount of idle time, and older sessions stay
-/// reachable from the chat's Session History, newest `refreshdate` first.
+import 'chat_model.dart';
+
+/// One session of a chat: a channel. A chat opens in its latest session (the
+/// newest `refreshdate`). When that session has been idle for
+/// [chatSessionIdleLimit] the app asks whether to continue it or start a new
+/// one; older sessions stay reachable from the chat's Session History.
 class ChatSession {
   final String channelId;
   final String name;
@@ -35,4 +38,31 @@ class ChatSession {
         ? DateTime.fromMillisecondsSinceEpoch(millis)
         : DateTime.tryParse(text);
   }
+}
+
+/// How long a session can sit unused before the app asks whether to
+/// continue it or start a new one.
+const chatSessionIdleLimit = Duration(hours: 1);
+
+/// When the conversation in [messages] last had activity, ignoring system
+/// messages; null when there is none.
+DateTime? lastChatActivity(Iterable<ChatMessage> messages) {
+  DateTime? latest;
+  for (final message in messages) {
+    if (message.messageType == 'system') continue;
+    if (latest == null || message.createdAt.isAfter(latest)) {
+      latest = message.createdAt;
+    }
+  }
+  return latest;
+}
+
+/// The time of the last activity when it is older than [chatSessionIdleLimit],
+/// i.e. the session is worth asking about; null for an empty or recent one.
+DateTime? idleSince(Iterable<ChatMessage> messages, {DateTime? now}) {
+  final last = lastChatActivity(messages);
+  if (last == null) return null;
+  return (now ?? DateTime.now()).difference(last) > chatSessionIdleLimit
+      ? last
+      : null;
 }

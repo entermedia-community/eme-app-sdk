@@ -295,4 +295,37 @@ void main() {
     expect(owner.isOwner, isTrue);
     expect(member.isOwner, isFalse);
   });
+
+  test(
+    'createChatSession posts to newsession.json with the chat as query',
+    () async {
+      late RequestOptions seen;
+      final api = apiWith((o) {
+        seen = o;
+        return {
+          'response': {'status': 'ok'},
+          'channel': 'ch42',
+        };
+      });
+
+      final session = await api.createChatSession(serverId: 'srv1');
+
+      expect(seen.method, 'POST');
+      expect(seen.path, contains('/services/chat/newsession.json'));
+      expect(seen.queryParameters, containsPair('serverid', 'srv1'));
+      expect(session.channelId, 'ch42');
+    },
+  );
+
+  test('createChatSession throws when the server returns no channel', () async {
+    final api = apiWith(
+      (o) => {
+        'response': {'status': 'error', 'error': 'no existing chat'},
+      },
+    );
+    expect(
+      () => api.createChatSession(serverId: 'srv1'),
+      throwsA(isA<Exception>()),
+    );
+  });
 }

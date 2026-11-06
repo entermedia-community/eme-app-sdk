@@ -282,4 +282,42 @@ void main() {
       },
     );
   });
+
+  group('idle chat sessions', () {
+    ChatMessage at(DateTime when, {String? type}) => ChatMessage(
+      messageId: when.toIso8601String(),
+      channel: 'c',
+      userId: 'u',
+      message: 'hi',
+      messageType: type,
+      createdAt: when,
+    );
+    final now = DateTime(2026, 11, 7, 12);
+
+    test(
+      'a session quiet for more than the limit is idle since its last message',
+      () {
+        final last = now.subtract(const Duration(hours: 3));
+        final idle = idleSince([
+          at(now.subtract(const Duration(days: 1))),
+          at(last),
+        ], now: now);
+        expect(idle, last);
+      },
+    );
+
+    test('recent, empty and system-only sessions are not idle', () {
+      expect(
+        idleSince([at(now.subtract(const Duration(minutes: 59)))], now: now),
+        isNull,
+      );
+      expect(idleSince(const [], now: now), isNull);
+      expect(
+        idleSince([
+          at(now.subtract(const Duration(days: 2)), type: 'system'),
+        ], now: now),
+        isNull,
+      );
+    });
+  });
 }

@@ -217,6 +217,32 @@ abstract class IApiService {
   /// (`emeevent/connectchat.json`).
   Future<String> connectEventChat(String eventId);
 
+  /// The EME Server's tutorial topics (`entitytopic/topics.json`).
+  Future<List<TutorialTopic>> fetchTutorialTopics({String? baseUrl});
+
+  /// The tutorials of [topicId] (`entitytutorial/tutorials.json`).
+  Future<List<TutorialSummary>> fetchTutorials(
+    String topicId, {
+    String? baseUrl,
+  });
+
+  /// The learner's tutor channel for [tutorialId], a new one when [createNew]
+  /// (`entitytutorial/tutorsession.json`).
+  Future<TutorialChannel> fetchTutorialSession(
+    String tutorialId, {
+    bool createNew = false,
+    String? baseUrl,
+  });
+
+  /// Asks the tutor to say its welcome in [channel]
+  /// (`entitytutorial/continue.json`, `chat_tutor_welcome`). The reply, and
+  /// every later step, arrives over the chat socket.
+  Future<void> startTutorial(
+    String tutorialId, {
+    required String channel,
+    String? baseUrl,
+  });
+
   /// Creates a public event hosted by the signed-in user
   /// (`emeevent/create.json`) and returns it.
   Future<EventModel> createEvent({
@@ -1152,14 +1178,18 @@ class ApiService implements IApiService {
     if (cleanBase.isEmpty) throw Exception('No server URL configured');
     final token = await SharedPref.getEMKey() ?? AuthService.token;
 
+    final params = {
+      'touser': ?toUser,
+      'serverid': ?serverId,
+      'collectionid': ?collectionId,
+      'fromuser': ?AuthService.userId,
+    };
+    // Sent as query too: the server reads request parameters, which a JSON
+    // body alone does not always fill.
     final response = await _dio.post(
       '$cleanBase/services/chat/newsession.json',
-      data: {
-        'touser': ?toUser,
-        'serverid': ?serverId,
-        'collectionid': ?collectionId,
-        'fromuser': ?AuthService.userId,
-      },
+      data: params,
+      queryParameters: params,
       options: Options(
         headers: {
           'Content-Type': 'application/json',
@@ -1910,6 +1940,120 @@ class ApiService implements IApiService {
       params: params,
       baseUrl: baseUrl,
     );
+  }
+
+  @override
+  Future<List<TutorialTopic>> fetchTutorialTopics({String? baseUrl}) async {
+    final data = await _getModuleJson(
+      'entitytopic',
+      'topics.json',
+      baseUrl: baseUrl,
+      reason: 'fetchTutorialTopics',
+    );
+    final topics = data['topics'] ?? data['data'];
+    if (topics is! List) {
+      throw Exception('Tutorial topics: ${_errorOf(data) ?? 'no topics'}');
+    }
+    return topics
+        .whereType<Map>()
+        .map((e) => TutorialTopic.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  @override
+  Future<List<TutorialSummary>> fetchTutorials(
+    String topicId, {
+    String? baseUrl,
+  }) async {
+    final data = await _getModuleJson(
+      'entitytutorial',
+      'tutorials.json',
+      baseUrl: baseUrl,
+      query: {'entitytopic': topicId},
+      reason: 'fetchTutorials',
+    );
+    final tutorials = data['tutorials'] ?? data['data'];
+    if (tutorials is! List) {
+      throw Exception('Tutorials: ${_errorOf(data) ?? 'no tutorials'}');
+    }
+    return tutorials
+        .whereType<Map>()
+        .map((e) => TutorialSummary.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  @override
+  Future<TutorialChannel> fetchTutorialSession(
+    String tutorialId, {
+    bool createNew = false,
+    String? baseUrl,
+  }) async {
+    final data = await _getModuleJson(
+      'entitytutorial',
+      'tutorsession.json',
+      baseUrl: baseUrl,
+      query: {'dataid': tutorialId, if (createNew) 'createnew': 'true'},
+      reason: 'fetchTutorialSession',
+    );
+    final channel = data['channel'];
+    if (channel is! Map || (channel['id']?.toString() ?? '').isEmpty) {
+      throw Exception(
+        'Tutorial $tutorialId: ${_errorOf(data) ?? 'no tutor channel'}',
+      );
+    }
+    return TutorialChannel.fromJson(Map<String, dynamic>.from(channel));
+  }
+
+  @override
+  Future<void> startTutorial(
+    String tutorialId, {
+    required String channel,
+    String? baseUrl,
+  }) async {
+    final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
+        ? (baseUrl.endsWith('/')
+              ? baseUrl.substring(0, baseUrl.length - 1)
+              : baseUrl)
+        : _cleanBaseUrl;
+    final token = await SharedPref.getEMKey() ?? AuthService.token;
+    final url = '$cleanBase/services/module/entitytutorial/continue.json';
+    final form = {
+      'context_tutorialid': tutorialId,
+      'functionname': 'chat_tutor_welcome',
+      'currentscenario': 'chat_tutor',
+      'channel': channel,
+      'context_skiploader': 'true',
+    };
+    debugPrint('[ApiService] startTutorial POST URL: $url $form');
+    final response = await _dio.post(
+      url,
+      data: form,
+      options: Options(
+        contentType: Headers.formUrlEncodedContentType,
+        headers: {
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        sendTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      ),
+    );
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      final error = Exception('startTutorial failed: HTTP $status');
+      AppErrorHandler.recordNonFatal(
+        error,
+        StackTrace.current,
+        reason: 'ApiService.startTutorial failed',
+        customKeys: {'url': url, 'tutorialId': tutorialId},
+      );
+      throw error;
+    }
+  }
+
+  static String? _errorOf(Map<String, dynamic> data) {
+    final response = data['response'];
+    return response is Map ? response['error']?.toString() : null;
   }
 
   @override

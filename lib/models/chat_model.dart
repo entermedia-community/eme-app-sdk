@@ -6,6 +6,7 @@ import '../auth/auth_service.dart';
 import '../utils/error_handler.dart';
 import 'form_model.dart';
 import 'product_message_model.dart';
+import 'tutorial_model.dart';
 
 enum ChatType { users, servers, mcp }
 
@@ -220,7 +221,15 @@ enum MessageRenderType {
   form,
   asset,
   delta,
-  product;
+  product,
+  // Tutorials (see TutorialQuestion): a multiple choice question, the tutor's
+  // verdict on the answer, the end of the tutorial, the tutor's free-text
+  // reply, and the hidden progress update.
+  question,
+  answereval,
+  agentcomment,
+  end,
+  progressupdate;
 
   bool get isAsset => this == MessageRenderType.asset;
   bool get isWelcome => this == MessageRenderType.welcome;
@@ -228,6 +237,11 @@ enum MessageRenderType {
   bool get isDelta => this == MessageRenderType.delta;
   bool get isProduct => this == MessageRenderType.product;
   bool get isForm => this == MessageRenderType.form;
+  bool get isQuestion => this == MessageRenderType.question;
+  bool get isAnswerEval => this == MessageRenderType.answereval;
+  bool get isAgentComment => this == MessageRenderType.agentcomment;
+  bool get isEnd => this == MessageRenderType.end;
+  bool get isProgressUpdate => this == MessageRenderType.progressupdate;
 
   factory MessageRenderType.fromName(String? name) {
     if (name == null || name.trim().isEmpty) {
@@ -241,6 +255,11 @@ enum MessageRenderType {
   }
 }
 
+String? _nonEmpty(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty ? null : text;
+}
+
 class AgentContextValues {
   final MessageRenderType messageRenderType;
   final String? content;
@@ -248,12 +267,36 @@ class AgentContextValues {
   final ProductMessageModel? product;
   bool? interactive = false;
 
+  /// Tutorial state the server echoes on every tutor message; the client
+  /// sends it back to ask for the next step.
+  final String? tutorialId;
+  final String? sectionId;
+  final String? componentId;
+
+  /// The text of a tutorial's `componentcontent`; the message body of a
+  /// text or asset step is the raw template, not this.
+  final String? componentContent;
+  final TutorialQuestion? question;
+
+  /// Set on `answereval` messages: the learner's pick and whether it was right.
+  final String? selectedOption;
+  final TutorialConfidence? confidence;
+  final bool? isCorrect;
+
   AgentContextValues({
     this.messageRenderType = MessageRenderType.text,
     this.content,
     this.asset,
     this.product,
     this.interactive = false,
+    this.tutorialId,
+    this.sectionId,
+    this.componentId,
+    this.componentContent,
+    this.question,
+    this.selectedOption,
+    this.confidence,
+    this.isCorrect,
   });
 
   void setInteractive(bool interactive) {
@@ -305,6 +348,20 @@ class AgentContextValues {
           formFields.isNotEmpty ||
           json['interactive'] == "yes" ||
           json['interactive'] == true,
+      tutorialId: _nonEmpty(json['tutorialid']),
+      sectionId: _nonEmpty(json['sectionid']),
+      componentId: _nonEmpty(json['componentid']),
+      componentContent: _nonEmpty(json['componentcontent']),
+      question: json['question'] is Map
+          ? TutorialQuestion.fromJson(
+              Map<String, dynamic>.from(json['question'] as Map),
+            )
+          : null,
+      selectedOption: _nonEmpty(json['selectedoption']),
+      confidence: TutorialConfidence.tryParse(_nonEmpty(json['confidence'])),
+      isCorrect: json['iscorrect'] == null
+          ? null
+          : bool.tryParse(json['iscorrect'].toString()),
     );
   }
 }
@@ -563,6 +620,11 @@ class ChatMessage {
   bool get isKeepAlive => command == 'keepalive';
 
   String get text {
+    final type = messageRenderType;
+    if (type.isQuestion && question != null) return question!.question;
+    final content = contextValues.componentContent;
+    if (content != null && (type.isText || type.isAsset)) return content;
+
     if (deltaOps.isNotEmpty) {
       final textBuilder = StringBuffer();
       for (var op in deltaOps) {
@@ -633,6 +695,7 @@ class ChatMessage {
   }
 
   Asset? get asset => contextValues.asset;
+  TutorialQuestion? get question => contextValues.question;
 
   bool get interactive =>
       formFields.isNotEmpty || (contextValues.interactive ?? false);

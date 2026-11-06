@@ -22,4 +22,5 @@ export 'server_category_model.dart';
 export 'server_model.dart';
 export 'task_list.dart';
 export 'transaction_model.dart';
+export 'tutorial_model.dart';
 export 'unified_chat_item.dart';
