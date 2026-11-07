@@ -48,13 +48,15 @@ abstract class IApiService {
 
   /// Sessions (channels) of one chat, newest `refreshdate` first
   /// (`/services/chat/sessions.json`). Give exactly one of [toUser] (a DM),
-  /// [serverId] (an EME Server chat) or [collectionId] (a project chat).
-  /// Throws when the server is unreachable or answers with an error.
+  /// [serverId] (an EME Server chat), [collectionId] (a project chat) or
+  /// [myEme] (the user's own My EME chat). Throws when the server is
+  /// unreachable or answers with an error.
   Future<List<ChatSession>> fetchChatSessions({
     String? toUser,
     String? serverId,
     String? collectionId,
     String? baseUrl,
+    bool myEme = false,
   });
 
   /// Starts a new session (channel) of the same chat
@@ -1117,6 +1119,7 @@ class ApiService implements IApiService {
     String? serverId,
     String? collectionId,
     String? baseUrl,
+    bool myEme = false,
   }) async {
     final cleanBase = (baseUrl != null && baseUrl.isNotEmpty)
         ? (baseUrl.endsWith('/')
@@ -1132,6 +1135,7 @@ class ApiService implements IApiService {
         'touser': ?toUser,
         'serverid': ?serverId,
         'collectionid': ?collectionId,
+        if (myEme) 'myeme': 'true',
         'fromuser': ?AuthService.userId,
       },
       options: Options(
