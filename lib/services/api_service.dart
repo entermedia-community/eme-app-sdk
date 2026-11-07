@@ -215,8 +215,9 @@ abstract class IApiService {
 
   /// Opens the user's own "My EME" chat on the root server and returns its
   /// channel id (`chat/connectmyeme.json`, scenario
-  /// `my_eme_welcome_menu`).
-  Future<String> connectMyEmeChat();
+  /// `my_eme_welcome_menu`). With [createNew] it starts a new session
+  /// (`createnew=true`) instead of resuming the current one.
+  Future<String> connectMyEmeChat({bool createNew = false});
 
   /// Opens the event's chat channel and returns its id
   /// (`emeevent/connectchat.json`).
@@ -1948,11 +1949,14 @@ class ApiService implements IApiService {
   }
 
   @override
-  Future<String> connectMyEmeChat() {
+  Future<String> connectMyEmeChat({bool createNew = false}) {
     return ChatSocketService().connectChat(
       null,
       endpoint: 'chat/connectmyeme.json',
-      params: {'currentscenario': 'my_eme_welcome_menu'},
+      params: {
+        'currentscenario': 'my_eme_welcome_menu',
+        if (createNew) 'createnew': 'true',
+      },
     );
   }
 
