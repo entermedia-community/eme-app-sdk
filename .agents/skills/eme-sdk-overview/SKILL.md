@@ -14,6 +14,19 @@ Everything is re-exported from one barrel: `lib/eme_app_sdk.dart`. **When you ad
 add an `export` to the matching barrel** (`models/models.dart`, `providers/providers.dart`,
 `auth/auth.dart`, or `eme_app_sdk.dart` for services/utils), otherwise the app can't see it.
 
+## Terminology: "Project" = `librarycollection`
+
+A **Project** is a `librarycollection` (`LibraryCollectionModel`, `fetchUserProjects`,
+`createProject`, `connectProjectChat`, all on `services/module/librarycollection/`). Do not confuse
+it with `collectiveproject`, a separate table for sub-spaces *inside* a librarycollection (linked
+by `parentcollectionid`; `create.json` auto-creates a "Public" one). "Project" in a request never
+means `collectiveproject` / `emeproject`. `collectiveproject` is planned for removal (replaced by
+channels) once tutorials are tested and working, so don't build new features on it.
+
+`viewprojects.json` (`ProjectManager.viewUserProjects`) only returns collections where the user is
+`ontheteam=true` in `librarycollectionusers` **and** `collectiontype=1`, excluding
+`organizationstatus` disabled/closed/pendingdelete. Ownership alone is not enough.
+
 ## Layout
 
 | Path | What lives there |
