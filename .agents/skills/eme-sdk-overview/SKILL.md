@@ -17,11 +17,11 @@ add an `export` to the matching barrel** (`models/models.dart`, `providers/provi
 ## Terminology: "Project" = `librarycollection`
 
 A **Project** is a `librarycollection` (`LibraryCollectionModel`, `fetchUserProjects`,
-`createProject`, `connectProjectChat`, all on `services/module/librarycollection/`). Do not confuse
-it with `collectiveproject`, a separate table for sub-spaces *inside* a librarycollection (linked
-by `parentcollectionid`; `create.json` auto-creates a "Public" one). "Project" in a request never
-means `collectiveproject` / `emeproject`. `collectiveproject` is planned for removal (replaced by
-channels) once tutorials are tested and working, so don't build new features on it.
+`createProject`, `connectProjectChat`, all on `services/module/librarycollection/`). The old
+`collectiveproject` "topic" table (sub-spaces inside a librarycollection) has been removed because it
+kept being mistaken for a project: a project's team chat is a `channel` with
+`searchtype=librarycollection` and `dataid` = the collection id. Never build on `collectiveproject`
+/ `emeproject`.
 
 `viewprojects.json` (`ProjectManager.viewUserProjects`) only returns collections where the user is
 `ontheteam=true` in `librarycollectionusers` **and** `collectiontype=1`, excluding

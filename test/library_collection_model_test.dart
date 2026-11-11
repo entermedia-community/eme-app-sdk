@@ -142,24 +142,20 @@ void main() {
       final connection = ProjectChatConnection.fromJson({
         'response': {'status': 'ok'},
         'collectionid': 'c1',
-        'topic': 't1',
         'channel': 'ch9',
         'caneditcollection': true,
         'canviewsettings': true,
       });
       expect(connection.canViewSettings, true);
       expect(connection.channelId, 'ch9');
-      expect(connection.topicId, 't1');
       expect(connection.canEditCollection, true);
 
       final missing = ProjectChatConnection.fromJson({
         'response': {'status': 'not found'},
         'channel': '',
-        'topic': '',
         'caneditcollection': false,
       });
       expect(missing.channelId, isEmpty);
-      expect(missing.topicId, isNull);
       expect(missing.canEditCollection, false);
     });
 

@@ -326,7 +326,6 @@ class ProjectTeamMember {
 /// administrator or on the team).
 class ProjectChatConnection {
   final String channelId;
-  final String? topicId;
   final bool canEditCollection;
 
   /// Web `canviewsettings`: may edit team members' roles and membership.
@@ -334,16 +333,13 @@ class ProjectChatConnection {
 
   const ProjectChatConnection({
     required this.channelId,
-    this.topicId,
     this.canEditCollection = false,
     this.canViewSettings = false,
   });
 
   factory ProjectChatConnection.fromJson(Map<String, dynamic> json) {
-    final topic = json['topic']?.toString() ?? '';
     return ProjectChatConnection(
       channelId: json['channel']?.toString() ?? '',
-      topicId: topic.isEmpty ? null : topic,
       canEditCollection: json['caneditcollection'] == true,
       canViewSettings: json['canviewsettings'] == true,
     );
