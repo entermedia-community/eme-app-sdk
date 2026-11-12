@@ -1,4 +1,5 @@
 export 'blog_post_model.dart';
+export 'chat_merge.dart';
 export 'chat_model.dart';
 export 'chat_session.dart';
 export 'em_data.dart';

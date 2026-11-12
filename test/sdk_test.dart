@@ -320,4 +320,250 @@ void main() {
       );
     });
   });
+  group('streamed message patches', () {
+    Map<String, dynamic> raw(
+      String id, {
+      String? command,
+      int? seq,
+      List<Map<String, dynamic>>? ops,
+      String? status,
+      String user = 'agent',
+    }) => {
+      'messageid': id,
+      'channel': 'c',
+      'user': user,
+      'messagetype': 'message',
+      'command': ?command,
+      'seq': ?seq,
+      'message': jsonEncode({'ops': ops ?? []}),
+      if (status != null)
+        'agentcontextvalues': jsonEncode({'messagestatus': status}),
+      'date': '2026-11-12T10:00:00Z',
+    };
+
+    Map<String, dynamic> text(String s) => {'insert': s};
+
+    ChatMessage parse(Map<String, dynamic> json) => ChatMessage.fromJson(json);
+
+    test('command, seq and messagestatus are parsed', () {
+      final msg = parse(
+        raw('m', command: 'messageappend', seq: 3, status: 'streaming'),
+      );
+      expect(msg.isAppend, isTrue);
+      expect(msg.isReplace, isFalse);
+      expect(msg.isPatch, isTrue);
+      expect(msg.seq, 3);
+      expect(msg.messageStatus, MessageStatus.streaming);
+      expect(MessageStatus.streaming.isActive, isTrue);
+      expect(MessageStatus.done.isActive, isFalse);
+    });
+
+    test('an ordinary message has no status, seq or patch command', () {
+      final msg = parse(raw('m'));
+      expect(msg.isPatch, isFalse);
+      expect(msg.seq, isNull);
+      expect(msg.messageStatus, isNull);
+      expect(MessageStatus.tryParse('nonsense'), isNull);
+    });
+
+    test('a replace swaps the ops, an append adds to them', () {
+      final list = [
+        parse(raw('m', ops: [text('Analyzing\n')])),
+      ];
+      expect(
+        mergeChatMessage(
+          list,
+          parse(
+            raw(
+              'm',
+              command: 'messagereplace',
+              seq: 1,
+              ops: [text('Hel\n')],
+              status: 'streaming',
+            ),
+          ),
+        ),
+        ChatMergeOutcome.updated,
+      );
+      expect(list.single.deltaOps, [text('Hel\n')]);
+      expect(list.single.messageStatus, MessageStatus.streaming);
+
+      mergeChatMessage(
+        list,
+        parse(
+          raw(
+            'm',
+            command: 'messageappend',
+            seq: 2,
+            ops: [text('lo\n')],
+            status: 'done',
+          ),
+        ),
+      );
+      expect(list, hasLength(1));
+      expect(list.single.deltaOps, [text('Hel\n'), text('lo\n')]);
+      expect(list.single.messageStatus, MessageStatus.done);
+      expect(list.single.seq, 2);
+      expect(list.single.isPatch, isFalse);
+      expect(list.single.messageRenderType, MessageRenderType.delta);
+    });
+
+    test('a patch seen twice is ignored', () {
+      final list = [
+        parse(raw('m', ops: [text('a\n')])),
+      ];
+      final patch = parse(
+        raw('m', command: 'messagereplace', seq: 1, ops: [text('b\n')]),
+      );
+      mergeChatMessage(list, patch);
+      expect(mergeChatMessage(list, patch), ChatMergeOutcome.ignored);
+      expect(list.single.deltaOps, [text('b\n')]);
+    });
+
+    test(
+      'an append that skips a number asks for a reload and changes nothing',
+      () {
+        final list = [
+          parse(raw('m', ops: [text('a\n')])),
+        ];
+        mergeChatMessage(
+          list,
+          parse(
+            raw('m', command: 'messagereplace', seq: 1, ops: [text('b\n')]),
+          ),
+        );
+        expect(
+          mergeChatMessage(
+            list,
+            parse(
+              raw('m', command: 'messageappend', seq: 3, ops: [text('d\n')]),
+            ),
+          ),
+          ChatMergeOutcome.needsReload,
+        );
+        expect(list.single.deltaOps, [text('b\n')]);
+        // A replace is the whole message, so it recovers the gap.
+        expect(
+          mergeChatMessage(
+            list,
+            parse(
+              raw('m', command: 'messagereplace', seq: 4, ops: [text('e\n')]),
+            ),
+          ),
+          ChatMergeOutcome.updated,
+        );
+        expect(list.single.deltaOps, [text('e\n')]);
+      },
+    );
+
+    test(
+      'an append to a message loaded from history is ignored, not reloaded',
+      () {
+        final list = [
+          parse(raw('m', ops: [text('saved midway\n')], status: 'streaming')),
+        ];
+        expect(
+          mergeChatMessage(
+            list,
+            parse(
+              raw('m', command: 'messageappend', seq: 7, ops: [text('x\n')]),
+            ),
+          ),
+          ChatMergeOutcome.ignored,
+        );
+        expect(list.single.deltaOps, [text('saved midway\n')]);
+      },
+    );
+
+    test(
+      'an append to an unknown message needs a reload, a replace adds it',
+      () {
+        final list = <ChatMessage>[];
+        expect(
+          mergeChatMessage(
+            list,
+            parse(
+              raw('m', command: 'messageappend', seq: 2, ops: [text('x\n')]),
+            ),
+          ),
+          ChatMergeOutcome.needsReload,
+        );
+        expect(list, isEmpty);
+        expect(
+          mergeChatMessage(
+            list,
+            parse(
+              raw(
+                'm',
+                command: 'messagereplace',
+                seq: 2,
+                ops: [text('x\n')],
+                status: 'working',
+              ),
+            ),
+          ),
+          ChatMergeOutcome.added,
+        );
+        expect(list.single.deltaOps, [text('x\n')]);
+        expect(list.single.messageStatus, MessageStatus.working);
+      },
+    );
+
+    test(
+      'the finished message replaces the patched one and clears the seq',
+      () {
+        final list = [
+          parse(raw('m', ops: [text('a\n')])),
+        ];
+        mergeChatMessage(
+          list,
+          parse(
+            raw(
+              'm',
+              command: 'messagereplace',
+              seq: 1,
+              ops: [text('b\n')],
+              status: 'streaming',
+            ),
+          ),
+        );
+        expect(
+          mergeChatMessage(
+            list,
+            parse(raw('m', ops: [text('b\n')], status: 'done')),
+          ),
+          ChatMergeOutcome.updated,
+        );
+        expect(list, hasLength(1));
+        expect(list.single.seq, isNull);
+        expect(list.single.messageStatus, MessageStatus.done);
+      },
+    );
+
+    test(
+      'other messages are added, keepalives ignored, removed ones dropped',
+      () {
+        final list = [
+          parse(raw('m', ops: [text('a\n')])),
+        ];
+        expect(
+          mergeChatMessage(list, parse(raw('n', user: 'admin'))),
+          ChatMergeOutcome.added,
+        );
+        expect(
+          mergeChatMessage(list, parse(raw('k', command: 'keepalive'))),
+          ChatMergeOutcome.ignored,
+        );
+        expect(
+          mergeChatMessage(list, parse(raw('m', command: 'messageremoved'))),
+          ChatMergeOutcome.removed,
+        );
+        expect(list.map((m) => m.messageId), ['n']);
+        expect(
+          mergeChatMessage(list, parse(raw('zzz', command: 'messageremoved'))),
+          ChatMergeOutcome.ignored,
+        );
+      },
+    );
+  });
 }

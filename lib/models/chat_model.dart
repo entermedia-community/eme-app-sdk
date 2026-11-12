@@ -255,6 +255,35 @@ enum MessageRenderType {
   }
 }
 
+/// Where an agent reply is in its work, from `agentcontextvalues.messagestatus`.
+/// The server sets it on messages that are built up while the agent works
+/// (My EME chat). A message without one is an ordinary, finished message.
+enum MessageStatus {
+  /// The agent is busy (thinking, running a tool) and has no text coming yet.
+  working,
+
+  /// Reply text is arriving.
+  streaming,
+
+  /// Finished.
+  done,
+
+  /// Failed; the message says why.
+  error;
+
+  /// True while more of the message is still to come.
+  bool get isActive => this == working || this == streaming;
+
+  static MessageStatus? tryParse(String? name) {
+    final clean = name?.toLowerCase().trim();
+    if (clean == null || clean.isEmpty) return null;
+    for (final status in MessageStatus.values) {
+      if (status.name == clean) return status;
+    }
+    return null;
+  }
+}
+
 String? _nonEmpty(dynamic value) {
   final text = value?.toString().trim() ?? '';
   return text.isEmpty ? null : text;
@@ -283,6 +312,9 @@ class AgentContextValues {
   final TutorialConfidence? confidence;
   final bool? isCorrect;
 
+  /// Set while the agent builds this message up; see [MessageStatus].
+  final MessageStatus? messageStatus;
+
   AgentContextValues({
     this.messageRenderType = MessageRenderType.text,
     this.content,
@@ -297,11 +329,30 @@ class AgentContextValues {
     this.selectedOption,
     this.confidence,
     this.isCorrect,
+    this.messageStatus,
   });
 
   void setInteractive(bool interactive) {
     this.interactive = interactive;
   }
+
+  /// A copy with a different [messageStatus] (null clears it).
+  AgentContextValues withStatus(MessageStatus? status) => AgentContextValues(
+    messageRenderType: messageRenderType,
+    content: content,
+    asset: asset,
+    product: product,
+    interactive: interactive,
+    tutorialId: tutorialId,
+    sectionId: sectionId,
+    componentId: componentId,
+    componentContent: componentContent,
+    question: question,
+    selectedOption: selectedOption,
+    confidence: confidence,
+    isCorrect: isCorrect,
+    messageStatus: status,
+  );
 
   factory AgentContextValues.fromJson(Map<String, dynamic> json) {
     String? rawMessageRenderType = json['messagerendertype']
@@ -362,6 +413,7 @@ class AgentContextValues {
       isCorrect: json['iscorrect'] == null
           ? null
           : bool.tryParse(json['iscorrect'].toString()),
+      messageStatus: MessageStatus.tryParse(_nonEmpty(json['messagestatus'])),
     );
   }
 }
@@ -374,6 +426,10 @@ class ChatMessage {
   final List<dynamic> deltaOps;
   final List<FormField> formFields;
   final String? command;
+
+  /// Number of a streamed patch (1, 2, 3...) of one message id, so a client can
+  /// tell it missed one. Null on messages that are not patches.
+  final int? seq;
   final String? replyToId;
   final String? messageType;
   final DateTime createdAt;
@@ -386,6 +442,7 @@ class ChatMessage {
     required this.userId,
     this.message,
     this.command,
+    this.seq,
     this.replyToId,
     this.messageType = 'message',
     List<dynamic>? deltaOps,
@@ -578,6 +635,9 @@ class ChatMessage {
       userId: (json['user'] ?? json['userid'] ?? '').toString(),
       message: messageString ?? '',
       command: json['command']?.toString(),
+      seq: json['seq'] is num
+          ? (json['seq'] as num).toInt()
+          : int.tryParse(json['seq']?.toString() ?? ''),
       replyToId: (json['replytoid'] ?? json['replyToId'])?.toString(),
       messageType: rawMessageType,
       deltaOps: deltaOps,
@@ -608,6 +668,7 @@ class ChatMessage {
       'userid': userId,
       'message': ?effectiveMessage,
       if (command != null) 'command': command,
+      if (seq != null) 'seq': seq,
       if (replyToId != null) 'replytoid': replyToId,
       if (messageType != null) 'messagetype': messageType,
       'createdat': createdAt.toIso8601String(),
@@ -618,6 +679,43 @@ class ChatMessage {
 
   bool get isMessageRemoved => command == 'messageremoved';
   bool get isKeepAlive => command == 'keepalive';
+
+  /// Add this message's ops to the end of the message with the same id.
+  bool get isAppend => command == 'messageappend';
+
+  /// Swap the message with the same id for this one's ops.
+  bool get isReplace => command == 'messagereplace';
+
+  /// A piece of a message that is being built up, not a message of its own.
+  bool get isPatch => isAppend || isReplace;
+
+  /// Where the agent is with this message; null for an ordinary message.
+  MessageStatus? get messageStatus => agentContextValues?.messageStatus;
+
+  /// The message this one's patch produces when applied on top of it: the ops
+  /// are added ([isAppend]) or swapped ([isReplace]), and the status moves on.
+  /// It is a whole message again (no command), numbered with the patch's
+  /// [seq] so the next patch can be checked against it.
+  ChatMessage applyPatch(ChatMessage patch) {
+    final ops = patch.isAppend
+        ? <dynamic>[...deltaOps, ...patch.deltaOps]
+        : List<dynamic>.of(patch.deltaOps);
+    return ChatMessage(
+      messageId: messageId,
+      channel: channel,
+      userId: userId,
+      message: jsonEncode({'ops': ops}),
+      seq: patch.seq,
+      replyToId: replyToId,
+      messageType: messageType,
+      deltaOps: ops,
+      formFields: formFields,
+      createdAt: createdAt,
+      agentContextValues: (agentContextValues ?? AgentContextValues())
+          .withStatus(patch.messageStatus),
+      product: product,
+    );
+  }
 
   String get text {
     final type = messageRenderType;
@@ -709,6 +807,7 @@ class ChatMessage {
     String? userId,
     String? message,
     String? command,
+    int? seq,
     String? replyToId,
     String? messageType,
     List<dynamic>? deltaOps,
@@ -723,6 +822,7 @@ class ChatMessage {
       userId: userId ?? this.userId,
       message: message ?? this.message,
       command: command ?? this.command,
+      seq: seq ?? this.seq,
       replyToId: replyToId ?? this.replyToId,
       messageType: messageType ?? this.messageType,
       deltaOps: deltaOps ?? this.deltaOps,
