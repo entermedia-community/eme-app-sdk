@@ -196,6 +196,44 @@ class ChatSocketService {
     }
   }
 
+  /// POSTs [data] plus [channel] to a chat link (a path like
+  /// `/services/chat/changescenario.json`, or a full URL). Throws when the
+  /// request fails or the server answers with an error status.
+  Future<void> postChatLink(
+    String link, {
+    required String channel,
+    Map<String, dynamic>? data,
+    String? baseUrl,
+  }) async {
+    final token = _resolveToken();
+    final base = _stripTrailingSlash(_resolveHttpBaseUrl(baseUrl));
+    final url = link.startsWith('http')
+        ? link
+        : '$base${link.startsWith('/') ? '' : '/'}$link';
+    final body = <String, dynamic>{...?data, 'channel': channel};
+
+    debugPrint('ChatSocketService: postChatLink POST to $url with $body');
+    final response = await DioUtil.dio.post(
+      url,
+      data: body,
+      queryParameters: body,
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'X-tokentype': 'entermedia',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        sendTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    );
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw Exception('Chat link failed [$status]');
+    }
+  }
+
   /// Connect to EnterMedia WebSocket Chat
   Future<void> connect({
     required String channel,
