@@ -21,10 +21,30 @@ The socket and the history endpoints both produce `ChatMessage.fromJson`. Main k
 | `messageid`, `channel`, `user` | `messageId`, `channel`, `userId` | `isUser` is true when `userId == AuthService.userId` (or `'user'`/`'me'`) |
 | `message` | `message` | May be plain text **or** a JSON string/map containing `ops`/`delta` (Quill) or `form` |
 | `date` / `createdat` | `createdAt` | ISO string or epoch millis |
-| `command` | `command` | `messagereceived`, `keepalive`, `messageremoved` |
+| `command` | `command` | `messagereceived`, `keepalive`, `messageremoved`, `messageappend`, `messagereplace` (see Streamed replies) |
+| `seq` | `seq` | Number of a patch (1, 2, 3...) of one message id; null on whole messages |
 | `messagetype` | `messageType` | e.g. `message`, `product`, `asset` |
-| `agentcontextvalues` | `agentContextValues` | Map or JSON string: `messagerendertype`, `form`/`formfields`/`fields`, `asset`, `product`, `interactive` |
+| `agentcontextvalues` | `agentContextValues` | Map or JSON string: `messagerendertype`, `form`/`formfields`/`fields`, `asset`, `product`, `interactive`, `messagestatus` |
 | `form`, `messagerendertype` (root) | merged into context | Root-level values are supported as a fallback |
+
+## Streamed replies (My EME chat)
+
+The server builds one agent reply up as it works. It sends the same `messageid` many times:
+
+- `messageappend`: `message` holds only the new ops, to add to the end of the message.
+- `messagereplace`: `message` holds all the ops, swapping the message.
+- No command: the whole message. The finished reply arrives this way, so a client that missed
+  a patch is put right.
+
+Patches carry `seq` and `agentcontextvalues.messagestatus` (`MessageStatus`: `working`,
+`streaming`, `done`, `error`; `isActive` while more is coming). `ChatMessage.isAppend` /
+`isReplace` / `isPatch` / `messageStatus` read them, and `applyPatch` returns the merged message.
+
+Use `mergeChatMessage(list, incoming)` (`models/chat_merge.dart`) instead of `list.add` in a chat
+screen. It handles patches, whole-message replacement by id and `messageremoved`, and returns a
+`ChatMergeOutcome`: `added`, `updated`, `removed`, `ignored` or `needsReload` (a patch was missed,
+so load the history again). An append can only follow a message this client has seen a patch of;
+one loaded from history is skipped until a replace or the finished message comes.
 
 The `messageRenderType` getter picks the bubble in this order: product → asset → (delta ops / form
 fields / context type) → text. Providing form fields forces `form`.
@@ -55,7 +75,7 @@ final channel = await socket.connectChat(server.id);          // server chat
 await socket.connect(channel: channel, userId: AuthService.userId,
     baseUrl: server.serverMediaDBUrl.isNotEmpty ? server.serverMediaDBUrl : null);
 final sub = socket.messageStream.listen((m) {
-  if (m.isKeepAlive || m.isMessageRemoved) return;
+  if (m.isKeepAlive) return;
   if (m.channel.isNotEmpty && m.channel != channel) return; // singleton: filter!
   ...
 });
