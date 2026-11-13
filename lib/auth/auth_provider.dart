@@ -145,15 +145,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         await _enablePush(result.user!);
       } else {
+        // Stay on the code screen so the user can retry.
         state = state.copyWith(
-          status: AuthStatus.error,
+          status: AuthStatus.codeSent,
           errorMessage: result.errorMessage ?? 'Invalid verification code',
         );
       }
       return result;
     } catch (e) {
       final err = e.toString();
-      state = state.copyWith(status: AuthStatus.error, errorMessage: err);
+      state = state.copyWith(status: AuthStatus.codeSent, errorMessage: err);
       return LoginResult(isSuccess: false, errorMessage: err);
     }
   }
