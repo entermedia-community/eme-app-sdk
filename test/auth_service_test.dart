@@ -151,8 +151,10 @@ Dio createMockAuthDio() {
             ),
           );
         } else if (path.contains('authentication/user.json')) {
-          final authHeader = options.headers['Authorization']?.toString() ?? '';
-          if (authHeader.isEmpty || authHeader.contains('null')) {
+          final xToken = options.headers['X-token']?.toString() ?? '';
+          if (options.headers['X-tokentype'] != 'signature' ||
+              !xToken.contains('"signature"') ||
+              options.headers.containsKey('Authorization')) {
             return handler.resolve(
               Response(
                 requestOptions: options,

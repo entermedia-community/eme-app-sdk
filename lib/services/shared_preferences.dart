@@ -17,6 +17,24 @@ class SharedPref {
     return stringValue;
   }
 
+  static const _signedTokenKey = 'eme_signed_token';
+
+  /// The `X-token` JSON (see SignedTokenProvider), reused for 24 hours.
+  static Future<void> saveSignedToken(String json) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_signedTokenKey, json);
+  }
+
+  static Future<String?> getSignedToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_signedTokenKey);
+  }
+
+  static Future<void> clearSignedToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_signedTokenKey);
+  }
+
   static Future<void> saveEmUser(EmUser emUser) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('emUser', emUser.toJson());
@@ -107,6 +125,7 @@ class SharedPref {
     prefs.remove("emUser");
     // remove the login token so the session ends
     prefs.remove("entermediakey");
+    prefs.remove(_signedTokenKey);
   }
 
   static const String _categoriesCacheKey = 'eme_server_categories_cache';

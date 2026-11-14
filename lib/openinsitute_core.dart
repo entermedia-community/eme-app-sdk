@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:dio/dio.dart';
+import 'auth/signed_token.dart';
 import 'helper/custom_exception.dart';
 import 'helper/request_type.dart';
 import 'services/oi_chat_manager.dart';
@@ -65,7 +66,7 @@ class OpenI {
   }) async {
     //Set headers
     Map<String, String> headers = <String, String>{};
-    headers.addAll({"X-tokentype": "entermedia"});
+    headers.addAll(await SignedTokenProvider.instance.headers());
     headers.addAll({"Content-type": "application/json"});
 
     //make API post
@@ -94,7 +95,7 @@ class OpenI {
   }) async {
     //Set headers
     Map<String, String> headers = <String, String>{};
-    headers.addAll({"X-tokentype": "entermedia"});
+    headers.addAll(await SignedTokenProvider.instance.headers());
     headers.addAll({"Content-type": "application/json"});
 
     final response = await httpRequest(

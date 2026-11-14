@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../auth/auth_service.dart';
+import '../auth/signed_token.dart';
 import '../models/chat_model.dart';
 import '../openinsitute_core.dart';
 import '../utils/dio.dart';
@@ -53,7 +54,6 @@ class ChatSocketService {
     String? baseUrl,
     String? token,
   }) async {
-    final effectiveToken = token ?? _resolveToken();
     final effectiveBase = baseUrl ?? _resolveHttpBaseUrl();
 
     // Determine target URL path
@@ -69,10 +69,7 @@ class ChatSocketService {
       final dio = DioUtil.dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
-          'Authorization': 'Bearer $effectiveToken',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.post(
@@ -125,7 +122,6 @@ class ChatSocketService {
     String? baseUrl,
     String endpoint = 'chat/connect.json',
   }) async {
-    final effectiveToken = _resolveToken();
     final effectiveBase = _stripTrailingSlash(_resolveHttpBaseUrl(baseUrl));
     final effectiveUser = _resolveUserId();
 
@@ -147,10 +143,7 @@ class ChatSocketService {
       final dio = DioUtil.dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (effectiveToken != null && effectiveToken.isNotEmpty) ...{
-          'Authorization': 'Bearer $effectiveToken',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.post(
@@ -205,7 +198,6 @@ class ChatSocketService {
     Map<String, dynamic>? data,
     String? baseUrl,
   }) async {
-    final token = _resolveToken();
     final base = _stripTrailingSlash(_resolveHttpBaseUrl(baseUrl));
     final url = link.startsWith('http')
         ? link
@@ -220,9 +212,7 @@ class ChatSocketService {
       options: Options(
         headers: {
           'Content-Type': 'application/json',
-          'X-tokentype': 'entermedia',
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
+          ...await SignedTokenProvider.instance.headers(),
         },
         sendTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),

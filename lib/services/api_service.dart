@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../auth/auth_service.dart';
+import '../auth/signed_token.dart';
 import '../models/models.dart';
 import '../openinsitute_core.dart';
 import '../utils/dio.dart';
 import '../utils/error_handler.dart';
 import 'chat_cache_manager.dart';
 import 'chat_socket_service.dart';
-import 'shared_preferences.dart';
 
 /// Configuration for the API Service
 class ApiConfig {
@@ -331,7 +331,6 @@ class ApiService implements IApiService {
   }) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl =
         '$cleanBase/services/module/emeserver/getemeservers.json';
 
@@ -348,10 +347,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.get(
@@ -403,7 +399,6 @@ class ApiService implements IApiService {
   Future<List<ServerCategoryModel>> fetchServerCategories() async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/emeserver/categories.json';
 
     debugPrint('[ApiService] fetchServerCategories GET URL: $primaryUrl');
@@ -411,10 +406,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.get(
@@ -484,7 +476,6 @@ class ApiService implements IApiService {
   Future<ServerModel?> fetchServerById(String id) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty || id.isEmpty) return null;
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/emeserver/getemeserver.json';
 
     debugPrint(
@@ -494,10 +485,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.get(
@@ -540,7 +528,6 @@ class ApiService implements IApiService {
   Future<bool> joinServer(String serverId) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty || serverId.isEmpty) return false;
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/emeserver/join.json';
 
     debugPrint(
@@ -550,10 +537,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.post(
@@ -628,7 +612,6 @@ class ApiService implements IApiService {
   Future<bool> leaveServer(String serverId) async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty || serverId.isEmpty) return false;
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/emeserver/leave.json';
 
     debugPrint(
@@ -638,10 +621,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.post(
@@ -715,7 +695,6 @@ class ApiService implements IApiService {
   Future<List<ServerModel>> fetchUserServers() async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl =
         '$cleanBase/services/module/emeserver/getuseremeservers.json';
 
@@ -724,10 +703,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       final response = await dio.get(
@@ -788,7 +764,6 @@ class ApiService implements IApiService {
   Future<List<EmeProfileModel>> fetchUsers() async {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/user/users.json';
 
     debugPrint('[ApiService] fetchUsers GET URL: $primaryUrl');
@@ -796,10 +771,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.get(
@@ -929,7 +901,6 @@ class ApiService implements IApiService {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
     final cacheKey = ChatCacheManager.chatListKey(cleanBase);
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/user/chats.json';
 
     debugPrint('[ApiService] fetchChats GET URL: $primaryUrl');
@@ -937,10 +908,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.get(
@@ -1020,7 +988,6 @@ class ApiService implements IApiService {
     final cleanBase = _cleanBaseUrl;
     if (cleanBase.isEmpty) return [];
     final cacheKey = ChatCacheManager.userChatHistoryKey(cleanBase, channelId);
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/user/chat.json';
 
     debugPrint(
@@ -1030,10 +997,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.get(
@@ -1127,7 +1091,6 @@ class ApiService implements IApiService {
               : baseUrl)
         : _cleanBaseUrl;
     if (cleanBase.isEmpty) throw Exception('No server URL configured');
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
 
     final response = await _dio.get(
       '$cleanBase/services/chat/sessions.json',
@@ -1141,9 +1104,7 @@ class ApiService implements IApiService {
       options: Options(
         headers: {
           'Content-Type': 'application/json',
-          'X-tokentype': 'entermedia',
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
+          ...await SignedTokenProvider.instance.headers(),
         },
         sendTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
@@ -1186,7 +1147,6 @@ class ApiService implements IApiService {
               : baseUrl)
         : _cleanBaseUrl;
     if (cleanBase.isEmpty) throw Exception('No server URL configured');
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
 
     final params = {
       'touser': ?toUser,
@@ -1203,9 +1163,7 @@ class ApiService implements IApiService {
       options: Options(
         headers: {
           'Content-Type': 'application/json',
-          'X-tokentype': 'entermedia',
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
+          ...await SignedTokenProvider.instance.headers(),
         },
         sendTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
@@ -1244,7 +1202,6 @@ class ApiService implements IApiService {
       channelId,
       serverId: serverId,
     );
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/chat/chat.json';
 
     final queryParams = <String, dynamic>{
@@ -1259,10 +1216,7 @@ class ApiService implements IApiService {
       final dio = _dio;
       final headers = <String, dynamic>{
         'Content-Type': 'application/json',
-        'X-tokentype': 'entermedia',
-        if (token != null && token.isNotEmpty) ...{
-          'Authorization': 'Bearer $token',
-        },
+        ...await SignedTokenProvider.instance.headers(),
       };
 
       Response response = await dio.get(
@@ -1442,7 +1396,6 @@ class ApiService implements IApiService {
               ? baseUrl.substring(0, baseUrl.length - 1)
               : baseUrl)
         : _cleanBaseUrl;
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final primaryUrl = '$cleanBase/services/module/$module/$path';
 
     debugPrint('[ApiService] $reason GET URL: $primaryUrl $query');
@@ -1453,8 +1406,7 @@ class ApiService implements IApiService {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
+            ...await SignedTokenProvider.instance.headers(),
           },
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
@@ -1587,7 +1539,6 @@ class ApiService implements IApiService {
     List<String> tags = const [],
     MultipartFile? logo,
   }) async {
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final url = '$_cleanBaseUrl/services/module/librarycollection/create.json';
     // The server reads `field` names and their `<field>.value`s; the logo is
     // the file named after the asset field it fills.
@@ -1615,10 +1566,7 @@ class ApiService implements IApiService {
         url,
         data: form,
         options: Options(
-          headers: {
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
+          headers: {...await SignedTokenProvider.instance.headers()},
           sendTimeout: const Duration(minutes: 2),
           receiveTimeout: const Duration(minutes: 1),
         ),
@@ -1828,7 +1776,6 @@ class ApiService implements IApiService {
     String? description,
     List<String> tags = const [],
   }) async {
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final url = '$_cleanBaseUrl/services/module/entityasset/upload.json';
     final form = FormData();
     if (collectionId != null) {
@@ -1854,10 +1801,7 @@ class ApiService implements IApiService {
         // no parsing on the server, so the target can never be missed.
         queryParameters: {'collectionid': ?collectionId},
         options: Options(
-          headers: {
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
+          headers: {...await SignedTokenProvider.instance.headers()},
           sendTimeout: const Duration(minutes: 5),
           receiveTimeout: const Duration(minutes: 2),
         ),
@@ -2037,7 +1981,6 @@ class ApiService implements IApiService {
               ? baseUrl.substring(0, baseUrl.length - 1)
               : baseUrl)
         : _cleanBaseUrl;
-    final token = await SharedPref.getEMKey() ?? AuthService.token;
     final url = '$cleanBase/services/module/entitytutorial/continue.json';
     final form = {
       'context_tutorialid': tutorialId,
@@ -2052,10 +1995,7 @@ class ApiService implements IApiService {
       data: form,
       options: Options(
         contentType: Headers.formUrlEncodedContentType,
-        headers: {
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
-        },
+        headers: {...await SignedTokenProvider.instance.headers()},
         sendTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
       ),

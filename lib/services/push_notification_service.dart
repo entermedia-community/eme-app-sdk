@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../auth/signed_token.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -542,7 +543,6 @@ class PushNotificationService implements UserPushSubscriber {
     if (base.isEmpty) return false;
 
     final url = '$base/services/module/user/savedevicetoken.json';
-    final userToken = await SharedPref.getEMKey();
 
     try {
       final dio = DioUtil.dio;
@@ -562,10 +562,7 @@ class PushNotificationService implements UserPushSubscriber {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
-            if (userToken != null && userToken.isNotEmpty) ...{
-              'Authorization': 'Bearer $userToken',
-            },
+            ...await SignedTokenProvider.instance.headers(),
           },
           sendTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 8),

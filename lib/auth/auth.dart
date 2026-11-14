@@ -3,3 +3,4 @@ export 'auth_service.dart';
 export 'auth_state.dart';
 export 'device_key_store.dart';
 export 'firebase_credential_store.dart';
+export 'signed_token.dart';

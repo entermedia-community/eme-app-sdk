@@ -12,6 +12,7 @@ import 'auth_state.dart';
 import 'device_key_platform.dart';
 import 'device_key_store.dart';
 import 'firebase_credential_store.dart';
+import 'signed_token.dart';
 
 abstract class IAuthService {
   Future<SendUserCodeResult> sendUserCode({
@@ -60,6 +61,7 @@ class AuthService implements IAuthService {
   final String baseUrl;
   final DeviceKeyStore _keyStore;
   final FirebaseCredentialStore _firebaseStore;
+  final SignedTokenProvider _signedToken;
 
   static String? currentUserId;
   static String? get userId => currentUserId;
@@ -76,10 +78,16 @@ class AuthService implements IAuthService {
     String? baseUrl,
     DeviceKeyStore? keyStore,
     FirebaseCredentialStore? firebaseStore,
+    SignedTokenProvider? signedToken,
   }) : openI = openI ?? OpenI.instance,
        _dio = dio ?? DioUtil.dio,
        _keyStore = keyStore ?? createPlatformKeyStore(),
        _firebaseStore = firebaseStore ?? const SecureFirebaseCredentialStore(),
+       _signedToken =
+           signedToken ??
+           (keyStore == null
+               ? SignedTokenProvider.instance
+               : SignedTokenProvider(keyStore: keyStore)),
        baseUrl = baseUrl ?? (openI ?? OpenI.instance)?.settings.mediadb ?? '';
 
   String _cleanUrl(String path) {
@@ -126,10 +134,7 @@ class AuthService implements IAuthService {
         url,
         data: body,
         options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
-          },
+          headers: {'Content-Type': 'application/json'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -197,7 +202,6 @@ class AuthService implements IAuthService {
         data: body,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
-          headers: {'X-tokentype': 'entermedia'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -335,7 +339,6 @@ class AuthService implements IAuthService {
         data: payload,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
-          headers: {'X-tokentype': 'entermedia'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 15),
         ),
@@ -376,7 +379,6 @@ class AuthService implements IAuthService {
         data: payload,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
-          headers: {'X-tokentype': 'entermedia'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -407,7 +409,9 @@ class AuthService implements IAuthService {
   }
 
   @override
-  Future<EmUser?> checkAuthSession() async {
+  Future<EmUser?> checkAuthSession() => _checkAuthSession(retry: true);
+
+  Future<EmUser?> _checkAuthSession({required bool retry}) async {
     final token = await getAuthToken();
     if (token == null || token.trim().isEmpty) {
       currentUserId = null;
@@ -426,9 +430,7 @@ class AuthService implements IAuthService {
     final url = _cleanUrl('/services/authentication/user.json');
 
     debugPrint('[AuthService] checkAuthSession POST URL: $url');
-    debugPrint(
-      '[AuthService] checkAuthSession Headers: Authorization Bearer $token',
-    );
+    debugPrint('[AuthService] checkAuthSession signed with X-token');
 
     try {
       final response = await _dio.post(
@@ -436,8 +438,7 @@ class AuthService implements IAuthService {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
-            'Authorization': 'Bearer $token',
+            ...await _signedToken.headers(),
           },
           sendTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 8),
@@ -470,10 +471,12 @@ class AuthService implements IAuthService {
           return user;
         }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Bearer token expired (7 days) or revoked: sign in again with the
-        // device key; only a rejected key means the user must use a new code.
-        if (await refreshToken()) {
-          return await checkAuthSession();
+        // The server refused the signed X-token (key revoked or token
+        // rejected). Drop the stored token and try once with a fresh nonce and
+        // signature; only a rejected key means the user must use a new code.
+        await _signedToken.clear();
+        if (retry && await refreshToken()) {
+          return await _checkAuthSession(retry: false);
         }
         await logout();
         return null;
@@ -518,7 +521,6 @@ class AuthService implements IAuthService {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    final token = await getAuthToken();
     final url = _cleanUrl('/services/module/user/usersearch.json');
 
     debugPrint('[AuthService] searchUsers GET URL: $url?term=$cleanQuery');
@@ -530,9 +532,7 @@ class AuthService implements IAuthService {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            'X-tokentype': 'entermedia',
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
+            ...await _signedToken.headers(),
           },
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
@@ -577,7 +577,6 @@ class AuthService implements IAuthService {
     List<MapEntry<String, String>> fields, {
     MultipartFile? portrait,
   }) async {
-    final token = await getAuthToken();
     final url = _cleanUrl('/services/authentication/usersave.json');
     final uid = currentUserId ?? (await getCurrentUser())?.username ?? '';
 
@@ -600,11 +599,7 @@ class AuthService implements IAuthService {
         url,
         data: formData,
         options: Options(
-          headers: {
-            'X-tokentype': 'entermedia',
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
+          headers: {...await _signedToken.headers()},
           sendTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 15),
         ),
@@ -629,6 +624,7 @@ class AuthService implements IAuthService {
   Future<void> logout() async {
     await _revokeDeviceKey();
     await _firebaseStore.clear();
+    await _signedToken.clear();
     await SharedPref.resetValues();
     await DioUtil.clearCookies();
     currentUserId = null;
@@ -654,10 +650,7 @@ class AuthService implements IAuthService {
           data: {'keyid': key.keyId},
           options: Options(
             contentType: Headers.formUrlEncodedContentType,
-            headers: {
-              'X-tokentype': 'entermedia',
-              'Authorization': 'Bearer $token',
-            },
+            headers: {...await _signedToken.headers()},
             sendTimeout: const Duration(seconds: 5),
             receiveTimeout: const Duration(seconds: 5),
           ),
