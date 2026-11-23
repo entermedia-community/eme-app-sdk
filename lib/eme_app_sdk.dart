@@ -12,6 +12,7 @@ export 'services/api_service.dart';
 export 'services/chat_cache_manager.dart';
 export 'services/chat_socket_service.dart';
 export 'services/deep_link_service.dart';
+export 'services/lead_service.dart';
 export 'services/mcp_client_service.dart';
 export 'services/mcp_storage_service.dart';
 export 'services/oi_chat_manager.dart';
