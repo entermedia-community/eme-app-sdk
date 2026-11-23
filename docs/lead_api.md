@@ -1,10 +1,35 @@
 # Lead capture API (embeddable chatbot)
 
+## GET `services/module/librarycollection/vendor.json?urlname=<urlname>` (implemented)
+
+Public, no login. A vendor is a `librarycollection` with `collectiontype=8`, matched on
+`urlname` exactly (case-sensitive). Its menu is the `automationscenario` rows listed in
+`librarycollection.vendorscenario`. Disabled scenarios (`enabled=false`) are left out, and
+the rest are sorted by `ordering`. Client: `LeadService.fetchVendor`.
+
+```json
+{
+  "response": { "status": "ok" },
+  "vendor": {
+    "id": "AaIJ_oFkvuisFDK6Jo7H", "name": "Vendor 1", "urlname": "VendorOne",
+    "menu": [
+      { "id": "entity_chat_questions", "name": "Answer Questions",
+        "description": "<longcaption>", "icon": "<scenarioicon>", "chatenabled": true }
+    ]
+  }
+}
+```
+
+Unknown vendor: HTTP 200 with `{"response": {"status": "error", "error": "vendor not found"}}`.
+The template is `eme-server/plugins/mediadb/html/services/module/librarycollection/vendor.json`.
+
+## Lead endpoints
+
 Status: **proposed**. The client (`LeadService` in `lib/services/lead_service.dart`,
 used by `eme_chatbot`) is built against this contract. The eme-server side is not
 implemented yet.
 
-All paths are relative to `mediadb` (for example `https://eme.world/site/mediadb`) under
+The paths below are relative to `mediadb` (for example `https://eme.world/site/mediadb`) under
 `services/module/lead/`. Bodies are JSON. Errors are a non-2xx status with
 `{"error": "<message>"}`. The client shows that message to the visitor.
 

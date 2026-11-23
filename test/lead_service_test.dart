@@ -37,6 +37,69 @@ void main() {
     channel: 'ch1',
   );
 
+  group('fetchVendor', () {
+    test('parses the vendor and its menu (real server sample)', () async {
+      final service = serviceWith(
+        (_) => {
+          'response': {'status': 'ok'},
+          'vendor': {
+            'id': 'AaIJ_oFkvuisFDK6Jo7H',
+            'name': 'Vendor 1',
+            'urlname': 'VendorOne',
+            'menu': [
+              {
+                'id': 'entity_chat_questions',
+                'name': 'Answer Questions',
+                'description': 'Good for getting quick answers.',
+                'icon': 'broadcast',
+                'chatenabled': true,
+              },
+            ],
+          },
+        },
+      );
+
+      final v = await service.fetchVendor('VendorOne');
+
+      expect(
+        requests.single.uri.toString(),
+        'http://test/site/mediadb/services/module/librarycollection/vendor.json?urlname=VendorOne',
+      );
+      expect(v.name, 'Vendor 1');
+      expect(v.urlName, 'VendorOne');
+      expect(v.menu.single.id, 'entity_chat_questions');
+      expect(v.menu.single.icon, 'broadcast');
+      expect(v.menu.single.chatEnabled, isTrue);
+    });
+
+    test('empty menu is allowed', () async {
+      final service = serviceWith(
+        (_) => {
+          'vendor': {'id': 'V1', 'name': 'V', 'urlname': 'v', 'menu': []},
+        },
+      );
+      expect((await service.fetchVendor('v')).menu, isEmpty);
+    });
+
+    test('status error on HTTP 200 throws with the server message', () async {
+      final service = serviceWith(
+        (_) => {
+          'response': {'status': 'error', 'error': 'vendor not found'},
+        },
+      );
+      expect(
+        service.fetchVendor('nope'),
+        throwsA(
+          isA<LeadServiceException>().having(
+            (e) => e.message,
+            'message',
+            contains('vendor not found'),
+          ),
+        ),
+      );
+    });
+  });
+
   group('fetchQuestionnaire', () {
     test('parses questions, options and consent', () async {
       final service = serviceWith(

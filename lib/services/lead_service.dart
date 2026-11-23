@@ -20,6 +20,10 @@ class LeadServiceException implements Exception {
 /// Public (no login) lead-capture endpoints used by the embeddable chatbot.
 /// The contract is documented in `docs/lead_api.md`.
 abstract class ILeadService {
+  /// Vendor (`librarycollection`, `collectiontype=8`) whose `urlname` matches
+  /// exactly, with its menu. Throws when there is no such vendor.
+  Future<VendorModel> fetchVendor(String urlName);
+
   Future<LeadQuestionnaire> fetchQuestionnaire(String vendorId);
 
   Future<LeadSession> startLead({
@@ -50,7 +54,7 @@ class LeadService implements ILeadService {
   final String? baseUrl;
   final Dio _dio;
 
-  String get _base {
+  String get _mediadb {
     var base = (baseUrl ?? OpenI.instance?.settings.mediadb ?? '').trim();
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
@@ -58,8 +62,10 @@ class LeadService implements ILeadService {
     if (base.isEmpty) {
       throw const LeadServiceException('No server URL configured');
     }
-    return '$base/services/module/lead';
+    return base;
   }
+
+  String get _base => '$_mediadb/services/module/lead';
 
   Options _options([LeadSession? session]) => Options(
     headers: {
@@ -96,7 +102,18 @@ class LeadService implements ILeadService {
         statusCode: status,
       );
     }
-    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is Map) {
+      // EnterMedia templates report failures as HTTP 200 with
+      // {"response": {"status": "error", "error": "..."}}.
+      final meta = data['response'];
+      if (meta is Map && meta['status']?.toString() == 'error') {
+        throw LeadServiceException(
+          '$op failed: ${meta['error'] ?? 'server error'}',
+          statusCode: status,
+        );
+      }
+      return Map<String, dynamic>.from(data);
+    }
     if (data == null || (data is String && data.trim().isEmpty)) return {};
     throw LeadServiceException('$op: unexpected response shape');
   }
@@ -109,6 +126,23 @@ class LeadService implements ILeadService {
     final value = body[key] ?? body['data'];
     if (value is Map) return Map<String, dynamic>.from(value);
     throw LeadServiceException('$op: missing "$key" in response');
+  }
+
+  @override
+  Future<VendorModel> fetchVendor(String urlName) async {
+    const op = 'fetchVendor';
+    final response = await _dio.get(
+      '$_mediadb/services/module/librarycollection/vendor.json',
+      queryParameters: {'urlname': urlName},
+      options: _options(),
+    );
+    final vendor = VendorModel.fromJson(
+      _object(_decode(response, op), 'vendor', op),
+    );
+    if (vendor.id.isEmpty) {
+      throw const LeadServiceException('$op: vendor has no id');
+    }
+    return vendor;
   }
 
   @override

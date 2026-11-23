@@ -156,3 +156,80 @@ class LeadSession {
     'channel': channel,
   };
 }
+
+/// One entry of a vendor's menu: an `automationscenario` picked in
+/// `librarycollection.vendorscenario`.
+class VendorMenuItem {
+  final String id;
+  final String name;
+  final String? description;
+
+  /// Bootstrap-style icon name from `automationscenario.scenarioicon`.
+  final String? icon;
+  final bool chatEnabled;
+
+  const VendorMenuItem({
+    required this.id,
+    required this.name,
+    this.description,
+    this.icon,
+    this.chatEnabled = false,
+  });
+
+  factory VendorMenuItem.fromJson(Map<String, dynamic> json) => VendorMenuItem(
+    id: (json['id'] ?? '').toString(),
+    name: (json['name'] ?? '').toString(),
+    description: _nonEmpty(json['description'] ?? json['longcaption']),
+    icon: _nonEmpty(json['icon'] ?? json['scenarioicon']),
+    chatEnabled: _parseBool(json['chatenabled']),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    if (description != null) 'description': description,
+    if (icon != null) 'icon': icon,
+    'chatenabled': chatEnabled,
+  };
+}
+
+/// A vendor is a `librarycollection` with `collectiontype=8`, looked up by
+/// its `urlname`.
+class VendorModel {
+  final String id;
+  final String name;
+  final String urlName;
+  final List<VendorMenuItem> menu;
+
+  const VendorModel({
+    required this.id,
+    required this.name,
+    required this.urlName,
+    this.menu = const [],
+  });
+
+  factory VendorModel.fromJson(Map<String, dynamic> json) {
+    final rawMenu = json['menu'];
+    return VendorModel(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      urlName: (json['urlname'] ?? json['urlName'] ?? '').toString(),
+      menu: rawMenu is List
+          ? rawMenu
+                .whereType<Map>()
+                .map(
+                  (e) => VendorMenuItem.fromJson(Map<String, dynamic>.from(e)),
+                )
+                .where((m) => m.id.isNotEmpty)
+                .toList()
+          : const [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'urlname': urlName,
+    'menu': menu.map((e) => e.toJson()).toList(),
+  };
+}
