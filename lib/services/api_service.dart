@@ -1989,7 +1989,7 @@ class ApiService implements IApiService {
     final form = {
       'context_tutorialid': tutorialId,
       'functionname': 'chat_tutor_welcome',
-      'currentscenario': 'chat_tutor',
+      'currentscenario': 'eme_server_tutor',
       'channel': channel,
       'context_skiploader': 'true',
     };
