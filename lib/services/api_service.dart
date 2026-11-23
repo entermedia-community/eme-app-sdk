@@ -243,7 +243,7 @@ abstract class IApiService {
   });
 
   /// Asks the tutor to say its welcome in [channel]
-  /// (`entitytutorial/continue.json`, `chat_tutor_welcome`). The reply, and
+  /// (`entitytutorial/start.json`, `chat_tutor_welcome`). The reply, and
   /// every later step, arrives over the chat socket.
   Future<void> startTutorial(
     String tutorialId, {
@@ -1958,7 +1958,11 @@ class ApiService implements IApiService {
       'entitytutorial',
       'tutorsession.json',
       baseUrl: baseUrl,
-      query: {'dataid': tutorialId, if (createNew) 'createnew': 'true'},
+      query: {
+        'dataid': tutorialId,
+        "context_tutorialid": tutorialId,
+        if (createNew) 'createnew': 'true',
+      },
       reason: 'fetchTutorialSession',
     );
     final channel = data['channel'];
@@ -1981,7 +1985,7 @@ class ApiService implements IApiService {
               ? baseUrl.substring(0, baseUrl.length - 1)
               : baseUrl)
         : _cleanBaseUrl;
-    final url = '$cleanBase/services/module/entitytutorial/continue.json';
+    final url = '$cleanBase/services/module/entitytutorial/start.json';
     final form = {
       'context_tutorialid': tutorialId,
       'functionname': 'chat_tutor_welcome',
