@@ -22,13 +22,34 @@ enum FormFieldType {
   select,
   radio,
   checkbox,
-  hidden;
+  hidden,
+
+  /// A calendar date, sent as `yyyy-MM-dd`.
+  date,
+
+  /// A time of day, sent as `HH:mm`.
+  time,
+
+  /// A date and time (HTML `datetime-local`), sent as `yyyy-MM-ddTHH:mm`.
+  datetime,
+
+  /// Multi-line text.
+  textarea;
+
+  /// Other names the server uses for a type.
+  static const _aliases = {
+    'datetime-local': FormFieldType.datetime,
+    'multiline': FormFieldType.textarea,
+    'paragraph': FormFieldType.textarea,
+  };
 
   factory FormFieldType.fromName(String? name) {
     if (name == null || name.trim().isEmpty) {
       return FormFieldType.text;
     }
     final clean = name.toLowerCase().trim();
+    final alias = _aliases[clean];
+    if (alias != null) return alias;
     return FormFieldType.values.firstWhere(
       (element) => element.name.toLowerCase() == clean,
       orElse: () => FormFieldType.text,
@@ -44,6 +65,9 @@ class FormField {
   final List<FormFieldOption> options;
   final bool? readOnly;
 
+  /// The form can't be submitted while this field is empty.
+  final bool required;
+
   FormField({
     required this.name,
     required this.type,
@@ -51,10 +75,12 @@ class FormField {
     this.value,
     this.options = const [],
     this.readOnly = false,
+    this.required = false,
   });
 
   factory FormField.fromJson(Map<String, dynamic> json) {
     final rawReadOnly = json['readOnly'] ?? json['readonly'];
+    final rawRequired = json['required'];
     final rawOptions = json['options'] ?? [];
     List<FormFieldOption> options = [];
     if (rawOptions is List) {
@@ -75,6 +101,7 @@ class FormField {
       value: json['value'],
       options: options,
       readOnly: rawReadOnly == true || rawReadOnly == 'true',
+      required: rawRequired == true || rawRequired == 'true',
     );
   }
 
@@ -86,6 +113,7 @@ class FormField {
       'value': value,
       'options': options.map((e) => e.toJson()).toList(),
       'readOnly': readOnly,
+      if (required) 'required': true,
     };
   }
 
@@ -96,6 +124,7 @@ class FormField {
     dynamic value,
     List<FormFieldOption>? options,
     bool? readOnly,
+    bool? required,
   }) {
     return FormField(
       name: name ?? this.name,
@@ -104,6 +133,7 @@ class FormField {
       value: value ?? this.value,
       options: options ?? this.options,
       readOnly: readOnly ?? this.readOnly,
+      required: required ?? this.required,
     );
   }
 }

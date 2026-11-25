@@ -24,6 +24,9 @@ class ApiConfig {
   });
 }
 
+/// Channel type of a visitor's chat with a chatbot vendor.
+const vendorChatChannelType = 'emechatbotvendorchat';
+
 /// Abstract contract for EME World API operations
 abstract class IApiService {
   Future<List<ServerModel>> fetchServers({String? query, String? category});
@@ -224,6 +227,29 @@ abstract class IApiService {
   /// Opens the event's chat channel and returns its id
   /// (`emeevent/connectchat.json`).
   Future<String> connectEventChat(String eventId);
+
+  /// Opens the signed-in visitor's own chat with a chatbot vendor (a
+  /// librarycollection with collectiontype 8) and returns its channel id
+  /// (`librarycollection/connectvendorchat.json`, channel type
+  /// `emechatbotvendorchat`). Each visitor keeps one channel per vendor.
+  Future<String> connectVendorChat(String vendorId);
+
+  /// Starts [scenarioId] on [channel] and runs its [functionName] step
+  /// (`chat/changescenario.json`), e.g. a chatbot menu pick runs
+  /// `<scenario>_confirm`. The reply arrives on the channel's socket.
+  /// Throws when the request fails.
+  Future<void> changeChatScenario(
+    String channel, {
+    required String scenarioId,
+    required String functionName,
+  });
+
+  /// Submits a server-sent form on [channel] (`chat/changescenario.json`).
+  /// [values] are the form's field names and values, hidden fields
+  /// included: their `functionname` names the step that handles the
+  /// submission, and each `context_<key>` field becomes context value
+  /// `<key>`. Throws when the request fails.
+  Future<void> submitChatForm(String channel, Map<String, dynamic> values);
 
   /// The EME Server's tutorial topics (`entitytopic/topics.json`).
   Future<List<TutorialTopic>> fetchTutorialTopics({String? baseUrl});
@@ -1905,6 +1931,39 @@ class ApiService implements IApiService {
         'currentscenario': 'my_eme_welcome_menu',
         if (createNew) 'createnew': 'true',
       },
+    );
+  }
+
+  static const _changeScenarioPath = '/services/chat/changescenario.json';
+
+  @override
+  Future<String> connectVendorChat(String vendorId) {
+    return ChatSocketService().connectChat(
+      null,
+      endpoint: 'module/librarycollection/connectvendorchat.json',
+      params: {'collectionid': vendorId, 'channeltype': vendorChatChannelType},
+    );
+  }
+
+  @override
+  Future<void> changeChatScenario(
+    String channel, {
+    required String scenarioId,
+    required String functionName,
+  }) {
+    return ChatSocketService().postChatLink(
+      _changeScenarioPath,
+      channel: channel,
+      data: {'currentscenario': scenarioId, 'functionname': functionName},
+    );
+  }
+
+  @override
+  Future<void> submitChatForm(String channel, Map<String, dynamic> values) {
+    return ChatSocketService().postChatLink(
+      _changeScenarioPath,
+      channel: channel,
+      data: values,
     );
   }
 

@@ -425,6 +425,10 @@ class ChatMessage {
   final String? message;
   final List<dynamic> deltaOps;
   final List<FormField> formFields;
+
+  /// Text for a form message's submit button (`submitLabel`), if the
+  /// server set one.
+  final String? formSubmitLabel;
   final String? command;
 
   /// Number of a streamed patch (1, 2, 3...) of one message id, so a client can
@@ -447,6 +451,7 @@ class ChatMessage {
     this.messageType = 'message',
     List<dynamic>? deltaOps,
     List<FormField>? formFields,
+    this.formSubmitLabel,
     required this.createdAt,
     this.agentContextValues,
     this.product,
@@ -611,6 +616,17 @@ class ChatMessage {
       decodedContext,
     );
 
+    String? submitLabelOf(dynamic source) {
+      if (source is! Map) return null;
+      final raw = (source['submitLabel'] ?? source['submitlabel'])?.toString();
+      return raw == null || raw.trim().isEmpty ? null : raw.trim();
+    }
+
+    final formSubmitLabel =
+        submitLabelOf(messageJson) ??
+        submitLabelOf(decodedContext) ??
+        submitLabelOf(json);
+
     // parse product
     ProductMessageModel? parsedProduct;
     if (json['product'] != null && json['product'] is Map<String, dynamic>) {
@@ -642,6 +658,7 @@ class ChatMessage {
       messageType: rawMessageType,
       deltaOps: deltaOps,
       formFields: formFields,
+      formSubmitLabel: formSubmitLabel,
       createdAt: parsedCreatedAt,
       agentContextValues: agentContextValues,
       product: parsedProduct,
@@ -658,6 +675,7 @@ class ChatMessage {
       }
       if (formFields.isNotEmpty) {
         map['form'] = formFields.map((e) => e.toJson()).toList();
+        if (formSubmitLabel != null) map['submitLabel'] = formSubmitLabel;
       }
       effectiveMessage = jsonEncode(map);
     }
@@ -710,6 +728,7 @@ class ChatMessage {
       messageType: messageType,
       deltaOps: ops,
       formFields: formFields,
+      formSubmitLabel: formSubmitLabel,
       createdAt: createdAt,
       agentContextValues: (agentContextValues ?? AgentContextValues())
           .withStatus(patch.messageStatus),
@@ -812,6 +831,7 @@ class ChatMessage {
     String? messageType,
     List<dynamic>? deltaOps,
     List<FormField>? formFields,
+    String? formSubmitLabel,
     DateTime? createdAt,
     AgentContextValues? agentContextValues,
     ProductMessageModel? product,
@@ -827,6 +847,7 @@ class ChatMessage {
       messageType: messageType ?? this.messageType,
       deltaOps: deltaOps ?? this.deltaOps,
       formFields: formFields ?? this.formFields,
+      formSubmitLabel: formSubmitLabel ?? this.formSubmitLabel,
       createdAt: createdAt ?? this.createdAt,
       agentContextValues: agentContextValues ?? this.agentContextValues,
       product: product ?? this.product,
