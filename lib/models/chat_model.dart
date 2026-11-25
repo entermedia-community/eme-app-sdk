@@ -429,6 +429,11 @@ class ChatMessage {
   /// Text for a form message's submit button (`submitLabel`), if the
   /// server set one.
   final String? formSubmitLabel;
+
+  /// True once the form was submitted (`submitted` in the message JSON): the
+  /// server then keeps each field's `value`, and apps show those values as
+  /// text instead of the form.
+  final bool formSubmitted;
   final String? command;
 
   /// Number of a streamed patch (1, 2, 3...) of one message id, so a client can
@@ -452,6 +457,7 @@ class ChatMessage {
     List<dynamic>? deltaOps,
     List<FormField>? formFields,
     this.formSubmitLabel,
+    this.formSubmitted = false,
     required this.createdAt,
     this.agentContextValues,
     this.product,
@@ -622,6 +628,11 @@ class ChatMessage {
       return raw == null || raw.trim().isEmpty ? null : raw.trim();
     }
 
+    final formSubmitted =
+        messageJson is Map &&
+        (messageJson['submitted'] == true ||
+            messageJson['submitted']?.toString() == 'true');
+
     final formSubmitLabel =
         submitLabelOf(messageJson) ??
         submitLabelOf(decodedContext) ??
@@ -659,6 +670,7 @@ class ChatMessage {
       deltaOps: deltaOps,
       formFields: formFields,
       formSubmitLabel: formSubmitLabel,
+      formSubmitted: formSubmitted,
       createdAt: parsedCreatedAt,
       agentContextValues: agentContextValues,
       product: parsedProduct,
@@ -676,6 +688,7 @@ class ChatMessage {
       if (formFields.isNotEmpty) {
         map['form'] = formFields.map((e) => e.toJson()).toList();
         if (formSubmitLabel != null) map['submitLabel'] = formSubmitLabel;
+        if (formSubmitted) map['submitted'] = true;
       }
       effectiveMessage = jsonEncode(map);
     }
@@ -729,6 +742,7 @@ class ChatMessage {
       deltaOps: ops,
       formFields: formFields,
       formSubmitLabel: formSubmitLabel,
+      formSubmitted: formSubmitted,
       createdAt: createdAt,
       agentContextValues: (agentContextValues ?? AgentContextValues())
           .withStatus(patch.messageStatus),
@@ -832,6 +846,7 @@ class ChatMessage {
     List<dynamic>? deltaOps,
     List<FormField>? formFields,
     String? formSubmitLabel,
+    bool? formSubmitted,
     DateTime? createdAt,
     AgentContextValues? agentContextValues,
     ProductMessageModel? product,
@@ -848,6 +863,7 @@ class ChatMessage {
       deltaOps: deltaOps ?? this.deltaOps,
       formFields: formFields ?? this.formFields,
       formSubmitLabel: formSubmitLabel ?? this.formSubmitLabel,
+      formSubmitted: formSubmitted ?? this.formSubmitted,
       createdAt: createdAt ?? this.createdAt,
       agentContextValues: agentContextValues ?? this.agentContextValues,
       product: product ?? this.product,
