@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../models/mcp_chat_message.dart';
 import '../models/mcp_conversation_model.dart';
 import '../models/mcp_server_model.dart';
@@ -373,11 +374,11 @@ final unifiedChatsProvider = Provider<AsyncValue<List<UnifiedChatItem>>>((ref) {
   final mcpConversations = ref.watch(mcpConversationsProvider);
   // Joined EME Servers are listed once loaded; a failed load leaves them out
   // without hiding the user's chats.
-  final joinedServers = ref.watch(userServersProvider).valueOrNull ?? const [];
+  final joinedServers = ref.watch(userServersProvider).value ?? const [];
   // Same for the projects the user is on the team of.
-  final projects = ref.watch(userProjectsProvider).valueOrNull ?? const [];
+  final projects = ref.watch(userProjectsProvider).value ?? const [];
   // And the events the user answered Interested or Going to.
-  final events = ref.watch(userEventsProvider).valueOrNull ?? const [];
+  final events = ref.watch(userEventsProvider).value ?? const [];
 
   List<UnifiedChatItem> buildMcpItems() {
     final List<UnifiedChatItem> items = [];

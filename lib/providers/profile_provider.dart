@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../models/profile_model.dart';
 import '../services/api_service.dart';
 import 'api_providers.dart';

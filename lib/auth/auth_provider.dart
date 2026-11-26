@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../models/em_user.dart';
 import '../services/push_notification_service.dart';
 import 'auth_service.dart';
@@ -23,18 +24,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// the server can push new messages. A failure is logged and never blocks
   /// the EME login.
   Future<void> _enablePush(EmUser user) async {
-    final credentials = await authService.getFirebaseCredentials();
-    if (credentials == null) {
-      debugPrint('[AuthNotifier] No Firebase credentials, push is disabled');
-      return;
-    }
-    final error = await _push.signInAndSubscribe(
-      email: credentials.email,
-      firebasePassword: credentials.password,
-      userId: user.username,
-    );
-    if (error != null) {
-      debugPrint('[AuthNotifier] Push notifications not enabled: $error');
+    try {
+      final credentials = await authService.getFirebaseCredentials();
+      if (credentials == null) {
+        debugPrint('[AuthNotifier] No Firebase credentials, push is disabled');
+        return;
+      }
+      final error = await _push.signInAndSubscribe(
+        email: credentials.email,
+        firebasePassword: credentials.password,
+        userId: user.username,
+      );
+      if (error != null) {
+        debugPrint('[AuthNotifier] Push notifications not enabled: $error');
+      }
+    } catch (e) {
+      debugPrint('[AuthNotifier] Push setup failed: $e');
     }
   }
 

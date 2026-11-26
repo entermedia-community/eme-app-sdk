@@ -239,16 +239,25 @@ class AuthService implements IAuthService {
         currentUserId = result.user!.username;
         currentUserEmail = cleanEmail;
 
+        // Push is optional: a secure-storage failure (e.g. on web) must never
+        // turn an accepted code into a failed login.
         final firebasePassword = result.firebasePassword;
-        if (firebasePassword != null && firebasePassword.isNotEmpty) {
-          currentFirebasePassword = firebasePassword;
-          await _firebaseStore.save(
-            FirebaseCredentials(email: cleanEmail, password: firebasePassword),
-          );
-        } else {
-          // Login still works, but push notifications cannot be set up.
-          debugPrint('[AuthService] Server returned no firebasepassword');
-          await _firebaseStore.clear();
+        try {
+          if (firebasePassword != null && firebasePassword.isNotEmpty) {
+            currentFirebasePassword = firebasePassword;
+            await _firebaseStore.save(
+              FirebaseCredentials(
+                email: cleanEmail,
+                password: firebasePassword,
+              ),
+            );
+          } else {
+            // Login still works, but push notifications cannot be set up.
+            debugPrint('[AuthService] Server returned no firebasepassword');
+            await _firebaseStore.clear();
+          }
+        } catch (e) {
+          debugPrint('[AuthService] Firebase credentials not stored: $e');
         }
       }
 
@@ -261,10 +270,7 @@ class AuthService implements IAuthService {
         reason: 'AuthService.loginWithCode failed, trying fallback',
         customKeys: {'email': cleanEmail},
       );
-      return LoginResult(
-        isSuccess: false,
-        errorMessage: 'Invalid or expired verification code',
-      );
+      return LoginResult(isSuccess: false, errorMessage: 'Sign in failed: $e');
     }
   }
 
@@ -623,7 +629,11 @@ class AuthService implements IAuthService {
   @override
   Future<void> logout() async {
     await _revokeDeviceKey();
-    await _firebaseStore.clear();
+    try {
+      await _firebaseStore.clear();
+    } catch (e) {
+      debugPrint('[AuthService] Firebase credentials not cleared: $e');
+    }
     await _signedToken.clear();
     await SharedPref.resetValues();
     await DioUtil.clearCookies();

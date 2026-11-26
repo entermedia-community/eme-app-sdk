@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../auth/auth_provider.dart';
 import '../auth/auth_service.dart';
 import '../models/eme_profile_model.dart';
