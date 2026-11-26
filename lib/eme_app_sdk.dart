@@ -19,6 +19,9 @@ export 'services/oi_chat_manager.dart';
 export 'services/push_notification_service.dart';
 export 'services/shared_preferences.dart';
 
+// Widgets
+export 'widgets/field_value.dart';
+
 // Providers
 export 'providers/providers.dart';
 
